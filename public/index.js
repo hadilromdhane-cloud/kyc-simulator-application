@@ -388,8 +388,10 @@ function setupEventPolling() {
           
           showNotification(message, notificationType, 8000);
           
-          // Handle specific webhook payloads
-          if (event.search_query_id) {
+          // Handle Reis KYC screening results with detailed popup
+          if (event.source === 'Reis_KYC' && event.customerId) {
+            showScreeningResultsPopup(event);
+          } else if (event.search_query_id) {
             const link = `https://greataml.com/search/searchdecision/${event.search_query_id}`;
             showPopup('New search result available:', link);
           }
@@ -568,6 +570,53 @@ function showPopup(message, link = '') {
   if (link) popupLink.select();
 }
 
+// --- Enhanced popup for screening results ---
+function showScreeningResultsPopup(event) {
+  // Create enhanced popup for screening results
+  const popup = document.getElementById('popup');
+  const popupText = document.getElementById('popupText');
+  const popupLink = document.getElementById('popupLink');
+
+  // Create detailed message
+  let message = `Customer ${event.customerId} Screening Results:\n\n`;
+  
+  // Risk Assessment
+  message += `🔍 Risk Assessment:\n`;
+  message += `• PEP Status: ${event.isPEP ? '⚠️ YES' : '✅ NO'} (${event.pepDecision || 'N/A'})\n`;
+  message += `• Sanctions: ${event.isSanctioned ? '🚨 YES' : '✅ NO'} (${event.sanctionDecision || 'N/A'})\n`;
+  message += `• Adverse Media: ${event.isAdverseMedia ? '⚠️ YES' : '✅ NO'}\n\n`;
+  
+  // System Information
+  message += `📋 System Details:\n`;
+  message += `• Service: ${event.serviceType || 'N/A'}\n`;
+  message += `• System: ${event.systemName || 'N/A'}\n`;
+  message += `• Query ID: ${event.search_query_id || 'N/A'}\n`;
+  message += `• Business Key: ${event.businessKey || 'N/A'}\n\n`;
+  
+  // Timestamp
+  message += `⏰ Processed: ${new Date(event.timestamp).toLocaleString()}`;
+
+  popupText.style.whiteSpace = 'pre-line';
+  popupText.textContent = message;
+
+  // Show link to review decisions if available
+  if (event.search_query_id) {
+    const link = `https://greataml.com/search/searchdecision/${event.search_query_id}`;
+    popupLink.value = link;
+    popupLink.style.display = 'block';
+    popupLink.placeholder = 'Click to review detailed decisions';
+  } else {
+    popupLink.style.display = 'none';
+  }
+
+  popup.style.display = 'block';
+  
+  // Auto-select link for easy copying
+  if (event.search_query_id) {
+    popupLink.select();
+  }
+}
+
 // --- Call searchPersonCustomer ---
 async function callSearch(entityType, containerId, responseId, isDecentralized = false) {
   if (!tenantName || !authToken) { 
@@ -627,8 +676,11 @@ async function callSearch(entityType, containerId, responseId, isDecentralized =
 const closeBtn = document.getElementById('closePopup');
 closeBtn.addEventListener('click', () => {
   const popup = document.getElementById('popup');
+  const popupText = document.getElementById('popupText');
+  
   popup.style.display = 'none';
-
+  popupText.style.whiteSpace = 'normal'; // Reset text styling
+  
   const sel = window.getSelection();
   sel.removeAllRanges();
 });
