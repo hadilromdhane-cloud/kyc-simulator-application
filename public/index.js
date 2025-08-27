@@ -113,10 +113,16 @@ function createNotificationElements() {
     overflow-y: auto;
     z-index: 10000;
     border: 2px solid #333;
+    cursor: move;
+    resize: both;
+    min-width: 300px;
+    min-height: 150px;
+    max-width: 800px;
+    max-height: 500px;
   `;
   
   const logHeader = document.createElement('div');
-  logHeader.innerHTML = 'System Log';
+  logHeader.innerHTML = '📋 System Log (drag to move)';
   logHeader.style.cssText = `
     background: #333;
     color: white;
@@ -125,14 +131,22 @@ function createNotificationElements() {
     border-radius: 3px 3px 0 0;
     font-weight: bold;
     text-align: center;
+    cursor: move;
+    user-select: none;
   `;
   
   const logContent = document.createElement('div');
   logContent.id = 'logContent';
+  logContent.style.cssText = `
+    cursor: text;
+  `;
   
   logPanel.appendChild(logHeader);
   logPanel.appendChild(logContent);
   document.body.appendChild(logPanel);
+
+  // Make log panel draggable
+  makeDraggable(logPanel, logHeader);
 
   // Connection status indicator
   const connectionStatus = document.createElement('div');
@@ -148,9 +162,66 @@ function createNotificationElements() {
     z-index: 10000;
     background: #dc3545;
     color: white;
+    cursor: move;
   `;
   connectionStatus.textContent = '● Disconnected';
   document.body.appendChild(connectionStatus);
+
+  // Make connection status draggable
+  makeDraggable(connectionStatus);
+}
+
+// Function to make elements draggable
+function makeDraggable(element, handle = null) {
+  const dragHandle = handle || element;
+  let isDragging = false;
+  let startX, startY, initialX, initialY;
+
+  dragHandle.addEventListener('mousedown', function(e) {
+    if (e.target.tagName.toLowerCase() === 'input' || e.target.tagName.toLowerCase() === 'textarea') {
+      return; // Don't drag if clicking on input elements
+    }
+    
+    isDragging = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    initialX = element.offsetLeft;
+    initialY = element.offsetTop;
+    
+    dragHandle.style.cursor = 'grabbing';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', function(e) {
+    if (!isDragging) return;
+    
+    const deltaX = e.clientX - startX;
+    const deltaY = e.clientY - startY;
+    
+    let newX = initialX + deltaX;
+    let newY = initialY + deltaY;
+    
+    // Keep element within viewport bounds
+    const rect = element.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    
+    newX = Math.max(0, Math.min(newX, viewportWidth - rect.width));
+    newY = Math.max(0, Math.min(newY, viewportHeight - rect.height));
+    
+    element.style.left = newX + 'px';
+    element.style.top = newY + 'px';
+    element.style.bottom = 'auto';
+    element.style.right = 'auto';
+  });
+
+  document.addEventListener('mouseup', function() {
+    if (isDragging) {
+      isDragging = false;
+      dragHandle.style.cursor = handle ? 'move' : 'grab';
+    }
+  });
+}
 }
 
 function showNotification(message, type = 'info', duration = 5000) {
