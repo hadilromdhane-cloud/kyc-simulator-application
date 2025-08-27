@@ -1,0 +1,15 @@
+{
+  "name": "kyc-web-simulator",
+  "version": "1.0.0",
+  "description": "Web Service Simulator for KYC operations with real-time webhook notifications",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "start": "node server.js"
+  },
+  "keywords": ["kyc", "webhook", "simulator", "reis"],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {}
+}
