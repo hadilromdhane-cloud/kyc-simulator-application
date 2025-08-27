@@ -258,107 +258,116 @@ function updateConnectionStatus(connected) {
   }
 }
 
-// --- IMPROVED Server-Sent Events Setup ---
-function setupEventSource() {
-  // Close existing connection
-  if (eventSource) {
-    eventSource.close();
-    eventSource = null;
+// --- POLLING-BASED Event System (instead of SSE) ---
+let lastEventId = 0;
+let pollingInterval = null;
+const pollingFrequency = 2000; // Poll every 2 seconds
+
+function setupEventPolling() {
+  // Clear existing polling
+  if (pollingInterval) {
+    clearInterval(pollingInterval);
+    pollingInterval = null;
   }
 
-  // Reset reconnect attempts on manual connection
   if (reconnectAttempts === 0) {
-    logMessage('Attempting to connect to event stream...', 'info');
+    logMessage('Starting event polling...', 'info');
   } else {
-    logMessage(`Reconnection attempt ${reconnectAttempts}/${maxReconnectAttempts}...`, 'warning');
+    logMessage(`Polling reconnection attempt ${reconnectAttempts}/${maxReconnectAttempts}...`, 'warning');
   }
-  
-  // Create new EventSource connection
-  eventSource = new EventSource('/events');
-  
-  // Connection opened successfully
-  eventSource.onopen = function(event) {
-    logMessage('Connected to event stream', 'success');
-    updateConnectionStatus(true);
-    showNotification('Real-time notifications connected', 'success');
-    
-    // Reset reconnect attempts on successful connection
-    reconnectAttempts = 0;
-  };
-  
-  // Message received from server
-  eventSource.onmessage = function(event) {
+
+  // Start polling
+  pollingInterval = setInterval(async () => {
     try {
-      const data = JSON.parse(event.data);
-      logMessage(`Event received: ${JSON.stringify(data)}`, 'info');
+      const response = await fetch(`/api/events?lastId=${lastEventId}`);
       
-      // Show notification based on event data
-      let message = 'New event received';
-      let notificationType = 'info';
-      
-      if (data.type === 'connection') {
-        message = data.message || 'Connected to notifications';
-        notificationType = 'success';
-        // Don't show notification for initial connection message
-        return;
-      } else if (data.customerId) {
-        message = `Alert for customer: ${data.customerId}`;
-        notificationType = 'warning';
-      } else if (data.message) {
-        message = data.message;
-        notificationType = 'warning';
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
       }
+
+      const data = await response.json();
       
-      showNotification(message, notificationType, 8000);
-      
-      // Handle specific webhook payloads
-      if (data.search_query_id) {
-        const link = `https://greataml.com/search/searchdecision/${data.search_query_id}`;
-        showPopup('New search result available:', link);
+      // Connection successful
+      if (reconnectAttempts > 0 || !document.getElementById('connectionStatus').textContent.includes('Connected')) {
+        logMessage('Connected to event polling', 'success');
+        updateConnectionStatus(true);
+        showNotification('Real-time notifications connected', 'success');
+        reconnectAttempts = 0;
       }
-      
+
+      // Process new events
+      if (data.events && data.events.length > 0) {
+        data.events.forEach(event => {
+          logMessage(`Event received: ${JSON.stringify(event)}`, 'info');
+          
+          // Update last event ID
+          if (event.id > lastEventId) {
+            lastEventId = event.id;
+          }
+
+          // Show notification based on event data
+          let message = 'New event received';
+          let notificationType = 'info';
+          
+          if (event.type === 'connection') {
+            // Skip connection events in polling mode
+            return;
+          } else if (event.customerId) {
+            message = `Alert for customer: ${event.customerId}`;
+            notificationType = 'warning';
+          } else if (event.message) {
+            message = event.message;
+            notificationType = 'warning';
+          }
+          
+          showNotification(message, notificationType, 8000);
+          
+          // Handle specific webhook payloads
+          if (event.search_query_id) {
+            const link = `https://greataml.com/search/searchdecision/${event.search_query_id}`;
+            showPopup('New search result available:', link);
+          }
+        });
+      }
+
     } catch (error) {
-      logMessage(`Error parsing event data: ${error.message}`, 'error');
-      console.error('Event parsing error:', error, 'Raw data:', event.data);
-    }
-  };
-  
-  // Connection error or closed
-  eventSource.onerror = function(event) {
-    logMessage('Event stream connection lost', 'error');
-    updateConnectionStatus(false);
-    
-    // Close the current connection
-    if (eventSource) {
-      eventSource.close();
-      eventSource = null;
-    }
-    
-    // Only attempt reconnection if we haven't exceeded max attempts
-    if (reconnectAttempts < maxReconnectAttempts) {
-      reconnectAttempts++;
-      showNotification(`Connection lost. Reconnecting... (${reconnectAttempts}/${maxReconnectAttempts})`, 'warning');
+      console.error('Polling error:', error);
       
-      setTimeout(() => {
-        if (!eventSource) { // Only reconnect if not already connected
-          setupEventSource();
-        }
-      }, reconnectDelay);
-    } else {
-      logMessage('Max reconnection attempts reached. Please refresh the page.', 'error');
-      showNotification('Connection failed. Please refresh the page.', 'error', 10000);
+      // Handle connection errors
+      if (reconnectAttempts === 0) {
+        logMessage('Event polling connection lost', 'error');
+        updateConnectionStatus(false);
+      }
+      
+      // Stop polling and attempt reconnection
+      clearInterval(pollingInterval);
+      pollingInterval = null;
+      
+      if (reconnectAttempts < maxReconnectAttempts) {
+        reconnectAttempts++;
+        showNotification(`Connection lost. Reconnecting... (${reconnectAttempts}/${maxReconnectAttempts})`, 'warning');
+        
+        setTimeout(() => {
+          if (!pollingInterval) { // Only reconnect if not already connected
+            setupEventPolling();
+          }
+        }, reconnectDelay);
+      } else {
+        logMessage('Max reconnection attempts reached. Please refresh the page.', 'error');
+        showNotification('Connection failed. Please refresh the page.', 'error', 10000);
+      }
     }
-  };
+  }, pollingFrequency);
 }
 
-// Function to manually reset connection (you can call this from console or add a button)
+// Function to manually reset connection
 function resetConnection() {
   reconnectAttempts = 0;
-  if (eventSource) {
-    eventSource.close();
-    eventSource = null;
+  if (pollingInterval) {
+    clearInterval(pollingInterval);
+    pollingInterval = null;
   }
-  setupEventSource();
+  setupEventPolling();
 }
 
 // --- Authentication ---
@@ -592,12 +601,12 @@ document.getElementById('entityTypeAsync')
 document.addEventListener('DOMContentLoaded', function() {
   logMessage('Application initialized', 'info');
   createNotificationElements();
-  setupEventSource();
+  setupEventPolling(); // Changed from setupEventSource to setupEventPolling
 });
 
 // Clean up on page unload
 window.addEventListener('beforeunload', function() {
-  if (eventSource) {
-    eventSource.close();
+  if (pollingInterval) {
+    clearInterval(pollingInterval);
   }
 });
