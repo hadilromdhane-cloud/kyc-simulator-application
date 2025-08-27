@@ -1,98 +1,62 @@
-// api/webhook/searchWebhook.js
-import { broadcast } from '../events.js';
-
-let requestLog = [];
+// api/events.js - Polling-based solution for Vercel
+let eventQueue = [];
+let lastEventId = 0;
 
 export default async function handler(req, res) {
-  const timestamp = new Date().toISOString();
-  const logEntry = {
-    timestamp,
-    headers: req.headers,
-    url: req.url,
-    method: req.method
+  // Set CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  if (req.method !== 'GET') {
+    return res.status(405).json({ message: 'Method not allowed' });
+  }
+
+  const { lastId } = req.query;
+  const clientLastId = parseInt(lastId) || 0;
+
+  console.log(`Polling request - Client last ID: ${clientLastId}, Server last ID: ${lastEventId}`);
+
+  // Get events newer than client's last received ID
+  const newEvents = eventQueue.filter(event => event.id > clientLastId);
+
+  // Clean old events (keep only last 50)
+  if (eventQueue.length > 50) {
+    eventQueue = eventQueue.slice(-50);
+  }
+
+  return res.status(200).json({
+    events: newEvents,
+    lastEventId: lastEventId,
+    timestamp: new Date().toISOString(),
+    totalEvents: eventQueue.length
+  });
+}
+
+// Function to add events to the queue
+export function addEvent(eventData) {
+  lastEventId++;
+  const event = {
+    id: lastEventId,
+    timestamp: new Date().toISOString(),
+    ...eventData
   };
   
-  requestLog.push(logEntry);
-  console.log(`[${timestamp}] Search Webhook ${req.method} received - Total requests: ${requestLog.length}`);
+  eventQueue.push(event);
+  console.log(`Event added to queue (ID: ${lastEventId}):`, JSON.stringify(eventData));
   
-  // Keep only last 100 requests
-  if (requestLog.length > 100) {
-    requestLog = requestLog.slice(-100);
-  }
+  return event;
+}
 
-  if (req.method === 'GET') {
-    return res.status(200).json({
-      status: 'healthy',
-      endpoint: 'Reis KYC Webhook',
-      totalWebhooksReceived: requestLog.filter(r => r.method === 'POST').length,
-      lastRequests: requestLog.slice(-5),
-      message: 'Reis KYC webhook endpoint operational',
-      expectedFormat: {
-        customerId: 'string (required)',
-        searchQueryId: 'integer (required)',
-        systemId: 'string (required)',
-        systemName: 'string (required)',
-        ServiceType: 'string (required)',
-        businessKey: 'string (required)',
-        isPEP: 'boolean',
-        isSanctioned: 'boolean',
-        isAdverseMedia: 'boolean',
-        pepDecision: 'string (optional)',
-        sanctionDecision: 'string (optional)',
-        _hash: 'string (optional)'
-      }
-    });
-  }
-
-  if (req.method === 'POST') {
-    try {
-      const payload = req.body;
-      console.log(`[${timestamp}] Parsed Reis KYC webhook payload:`, JSON.stringify(payload, null, 2));
-
-      // Transform screening payload to your app's notification format
-      const notification = {
-        customerId: payload.customerId,
-        businessKey: payload.businessKey,
-        message: `${payload.ServiceType} completed - Customer ${payload.customerId}`,
-        search_query_id: payload.searchQueryId,
-        systemId: payload.systemId,
-        systemName: payload.systemName,
-        serviceType: payload.ServiceType,
-        // Risk indicators
-        isPEP: payload.isPEP,
-        isSanctioned: payload.isSanctioned,
-        isAdverseMedia: payload.isAdverseMedia,
-        pepDecision: payload.pepDecision,
-        sanctionDecision: payload.sanctionDecision,
-        // Metadata
-        timestamp: timestamp,
-        source: 'Reis_KYC',
-        hash: payload._hash,
-        originalData: payload
-      };
-
-      console.log(`[${timestamp}] Broadcasting notification:`, JSON.stringify(notification, null, 2));
-      
-      // Broadcast the notification
-      broadcast(notification);
-      
-      return res.status(200).json({
-        status: 'success',
-        message: 'Reis KYC webhook received and processed',
-        searchQueryId: payload.searchQueryId,
-        receivedAt: timestamp
-      });
-
-    } catch (error) {
-      console.error(`[${timestamp}] Reis KYC webhook processing error:`, error);
-      return res.status(500).json({
-        status: 'error',
-        message: 'Processing failed',
-        details: error.message
-      });
-    }
-  }
-
-  // Method not allowed
-  res.status(405).json({ message: 'Method not allowed' });
+// Broadcast function (same interface as before)
+export function broadcast(payload) {
+  console.log(`Broadcasting event:`, JSON.stringify(payload));
+  return addEvent({
+    ...payload,
+    broadcastTimestamp: new Date().toISOString()
+  });
 }
