@@ -9,13 +9,14 @@ export default async function handler(req, res) {
   console.log('SSE connection requested');
   
   // Set SSE headers
-  res.writeHead(200, {
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
-    'Connection': 'keep-alive',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Cache-Control'
-  });
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Headers', 'Cache-Control');
+  
+  // Important: Set status before writing
+  res.status(200);
 
   // Create client object
   const client = { 
@@ -26,30 +27,36 @@ export default async function handler(req, res) {
   clients.push(client);
   console.log(`Client connected. Total clients: ${clients.length}`);
   
-  // Send welcome message
+  // Send welcome message immediately
   const welcomeMessage = {
     type: 'connection',
     message: 'Connected to real-time notifications',
     timestamp: new Date().toISOString()
   };
   
-  res.write(`data: ${JSON.stringify(welcomeMessage)}\n\n`);
+  try {
+    res.write(`data: ${JSON.stringify(welcomeMessage)}\n\n`);
+  } catch (error) {
+    console.error('Failed to send welcome message:', error);
+    removeClient(client);
+    return;
+  }
   
-  // Keep-alive every 30 seconds
+  // Keep-alive every 25 seconds (Vercel has 10s timeout, so we need frequent pings)
   const keepAlive = setInterval(() => {
     if (!client.active) {
       clearInterval(keepAlive);
       return;
     }
     try {
-      res.write(`: heartbeat\n\n`);
+      res.write(`: heartbeat ${Date.now()}\n\n`);
     } catch (error) {
       console.log('Client disconnected during heartbeat');
       client.active = false;
       clearInterval(keepAlive);
       removeClient(client);
     }
-  }, 30000);
+  }, 25000);
   
   // Handle client disconnect
   req.on('close', () => {
@@ -103,5 +110,5 @@ export function broadcast(payload) {
     }
   });
   
-  console.log(`Broadcast completed. Active clients: ${clients.length}`);
+ console.log(`Broadcast completed. Active clients: ${clients.length}`);
 }
