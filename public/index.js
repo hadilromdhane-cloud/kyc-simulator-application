@@ -122,7 +122,7 @@ function createNotificationElements() {
   `;
   
   const logHeader = document.createElement('div');
-  logHeader.innerHTML = '📋 System Log (drag to move)';
+  logHeader.innerHTML = 'System Log (drag to move)';
   logHeader.style.cssText = `
     background: #333;
     color: white;
