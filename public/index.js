@@ -113,7 +113,6 @@ function createNotificationElements() {
     overflow-y: auto;
     z-index: 10000;
     border: 2px solid #333;
-    cursor: move;
     resize: both;
     min-width: 300px;
     min-height: 150px;
@@ -137,9 +136,6 @@ function createNotificationElements() {
   
   const logContent = document.createElement('div');
   logContent.id = 'logContent';
-  logContent.style.cssText = `
-    cursor: text;
-  `;
   
   logPanel.appendChild(logHeader);
   logPanel.appendChild(logContent);
@@ -179,7 +175,7 @@ function makeDraggable(element, handle = null) {
 
   dragHandle.addEventListener('mousedown', function(e) {
     if (e.target.tagName.toLowerCase() === 'input' || e.target.tagName.toLowerCase() === 'textarea') {
-      return; // Don't drag if clicking on input elements
+      return;
     }
     
     isDragging = true;
@@ -218,10 +214,9 @@ function makeDraggable(element, handle = null) {
   document.addEventListener('mouseup', function() {
     if (isDragging) {
       isDragging = false;
-      dragHandle.style.cursor = handle ? 'move' : 'grab';
+      dragHandle.style.cursor = handle ? 'move' : 'move';
     }
   });
-}
 }
 
 function showNotification(message, type = 'info', duration = 5000) {
@@ -672,7 +667,7 @@ document.getElementById('entityTypeAsync')
 document.addEventListener('DOMContentLoaded', function() {
   logMessage('Application initialized', 'info');
   createNotificationElements();
-  setupEventPolling(); // Changed from setupEventSource to setupEventPolling
+  setupEventPolling();
 });
 
 // Clean up on page unload
