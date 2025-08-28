@@ -83,7 +83,7 @@ const defaultValues = {
 
 // --- Notification System ---
 function createNotificationElements() {
-  // Create notification container
+  // Create notification container only
   const notificationContainer = document.createElement('div');
   notificationContainer.id = 'notificationContainer';
   notificationContainer.style.cssText = `
@@ -94,129 +94,11 @@ function createNotificationElements() {
     max-width: 350px;
   `;
   document.body.appendChild(notificationContainer);
-
-  // Create log panel
-  const logPanel = document.createElement('div');
-  logPanel.id = 'logPanel';
-  logPanel.style.cssText = `
-    position: fixed;
-    bottom: 20px;
-    left: 20px;
-    width: 400px;
-    height: 200px;
-    background: #000;
-    color: #00ff00;
-    font-family: 'Courier New', monospace;
-    font-size: 12px;
-    padding: 10px;
-    border-radius: 5px;
-    overflow-y: auto;
-    z-index: 10000;
-    border: 2px solid #333;
-    resize: both;
-    min-width: 300px;
-    min-height: 150px;
-    max-width: 800px;
-    max-height: 500px;
-  `;
-  
-  const logHeader = document.createElement('div');
-  logHeader.innerHTML = 'System Log (drag to move)';
-  logHeader.style.cssText = `
-    background: #333;
-    color: white;
-    padding: 5px 10px;
-    margin: -10px -10px 10px -10px;
-    border-radius: 3px 3px 0 0;
-    font-weight: bold;
-    text-align: center;
-    cursor: move;
-    user-select: none;
-  `;
-  
-  const logContent = document.createElement('div');
-  logContent.id = 'logContent';
-  
-  logPanel.appendChild(logHeader);
-  logPanel.appendChild(logContent);
-  document.body.appendChild(logPanel);
-
-  // Make log panel draggable
-  makeDraggable(logPanel, logHeader);
-
-  // Connection status indicator
-  const connectionStatus = document.createElement('div');
-  connectionStatus.id = 'connectionStatus';
-  connectionStatus.style.cssText = `
-    position: fixed;
-    top: 20px;
-    left: 20px;
-    padding: 8px 15px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: bold;
-    z-index: 10000;
-    background: #dc3545;
-    color: white;
-    cursor: move;
-  `;
-  connectionStatus.textContent = '● Disconnected';
-  document.body.appendChild(connectionStatus);
-
-  // Make connection status draggable
-  makeDraggable(connectionStatus);
 }
 
-// Function to make elements draggable
+// Function to make elements draggable (keep for future use but not used now)
 function makeDraggable(element, handle = null) {
-  const dragHandle = handle || element;
-  let isDragging = false;
-  let startX, startY, initialX, initialY;
-
-  dragHandle.addEventListener('mousedown', function(e) {
-    if (e.target.tagName.toLowerCase() === 'input' || e.target.tagName.toLowerCase() === 'textarea') {
-      return;
-    }
-    
-    isDragging = true;
-    startX = e.clientX;
-    startY = e.clientY;
-    initialX = element.offsetLeft;
-    initialY = element.offsetTop;
-    
-    dragHandle.style.cursor = 'grabbing';
-    e.preventDefault();
-  });
-
-  document.addEventListener('mousemove', function(e) {
-    if (!isDragging) return;
-    
-    const deltaX = e.clientX - startX;
-    const deltaY = e.clientY - startY;
-    
-    let newX = initialX + deltaX;
-    let newY = initialY + deltaY;
-    
-    // Keep element within viewport bounds
-    const rect = element.getBoundingClientRect();
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-    
-    newX = Math.max(0, Math.min(newX, viewportWidth - rect.width));
-    newY = Math.max(0, Math.min(newY, viewportHeight - rect.height));
-    
-    element.style.left = newX + 'px';
-    element.style.top = newY + 'px';
-    element.style.bottom = 'auto';
-    element.style.right = 'auto';
-  });
-
-  document.addEventListener('mouseup', function() {
-    if (isDragging) {
-      isDragging = false;
-      dragHandle.style.cursor = handle ? 'move' : 'move';
-    }
-  });
+  // Keep function but not used since we removed draggable elements
 }
 
 function showNotification(message, type = 'info', duration = 5000) {
@@ -284,44 +166,18 @@ function getNotificationColor(type) {
 }
 
 function logMessage(message, type = 'info') {
-  const logContent = document.getElementById('logContent');
-  if (!logContent) return;
-
-  const timestamp = new Date().toLocaleTimeString();
-  const logEntry = document.createElement('div');
-  logEntry.style.color = getLogColor(type);
-  logEntry.innerHTML = `[${timestamp}] ${message}`;
-  
-  logContent.appendChild(logEntry);
-  logContent.scrollTop = logContent.scrollHeight;
-  
-  // Keep only last 50 entries
-  while (logContent.children.length > 50) {
-    logContent.removeChild(logContent.firstChild);
-  }
+  // Keep function for backward compatibility but only log to console
+  console.log(`[${new Date().toLocaleTimeString()}] ${message}`);
 }
 
 function getLogColor(type) {
-  switch(type) {
-    case 'success': return '#00ff00';
-    case 'error': return '#ff6b6b';
-    case 'warning': return '#ffeb3b';
-    case 'info': return '#00bfff';
-    default: return '#00ff00';
-  }
+  // Keep function for backward compatibility
+  return '#00ff00';
 }
 
 function updateConnectionStatus(connected) {
-  const status = document.getElementById('connectionStatus');
-  if (!status) return;
-
-  if (connected) {
-    status.style.background = '#28a745';
-    status.textContent = '● Connected';
-  } else {
-    status.style.background = '#dc3545';
-    status.textContent = '● Disconnected';
-  }
+  // Keep function for backward compatibility but do nothing
+  // No connection status display anymore
 }
 
 // --- POLLING-BASED Event System (instead of SSE) ---
@@ -354,7 +210,7 @@ function setupEventPolling() {
       const data = await response.json();
       
       // Connection successful
-      if (reconnectAttempts > 0 || !document.getElementById('connectionStatus').textContent.includes('Connected')) {
+      if (reconnectAttempts > 0) {
         logMessage('Connected to event polling', 'success');
         updateConnectionStatus(true);
         showNotification('Real-time notifications connected', 'success');
