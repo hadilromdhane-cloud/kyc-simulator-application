@@ -378,6 +378,9 @@ function setupEventPolling() {
           if (event.type === 'connection') {
             // Skip connection events in polling mode
             return;
+          } else if (event.source === 'Reis_KYC' && event.customerId) {
+            message = `Hits processed for customer ${event.customerId}`;
+            notificationType = 'warning';
           } else if (event.customerId) {
             message = `Alert for customer: ${event.customerId}`;
             notificationType = 'warning';
@@ -577,44 +580,208 @@ function showScreeningResultsPopup(event) {
   const popupText = document.getElementById('popupText');
   const popupLink = document.getElementById('popupLink');
 
-  // Create detailed message
-  let message = `Customer ${event.customerId} Screening Results:\n\n`;
-  
-  // Risk Assessment
+  // Create message in your exact format
+  let message = `Customer ${event.customerId} Screening Results:\n`;
   message += `🔍 Risk Assessment:\n`;
   message += `• PEP Status: ${event.isPEP ? '⚠️ YES' : '✅ NO'} (${event.pepDecision || 'N/A'})\n`;
   message += `• Sanctions: ${event.isSanctioned ? '🚨 YES' : '✅ NO'} (${event.sanctionDecision || 'N/A'})\n`;
   message += `• Adverse Media: ${event.isAdverseMedia ? '⚠️ YES' : '✅ NO'}\n\n`;
+  message += `Onboarding decision:\n`;
   
-  // System Information
-  message += `📋 System Details:\n`;
-  message += `• Service: ${event.serviceType || 'N/A'}\n`;
-  message += `• System: ${event.systemName || 'N/A'}\n`;
-  message += `• Query ID: ${event.search_query_id || 'N/A'}\n`;
-  message += `• Business Key: ${event.businessKey || 'N/A'}\n\n`;
-  
-  // Timestamp
-  message += `⏰ Processed: ${new Date(event.timestamp).toLocaleString()}`;
+  // Add onboarding decision based on sanctions status
+  if (event.isSanctioned) {
+    message += `Your customer is confirmed as sanctioned. You cannot proceed with the onboarding.`;
+  } else {
+    message += `Customer cleared for onboarding. You can proceed with the onboarding process.`;
+  }
 
   popupText.style.whiteSpace = 'pre-line';
+  popupText.style.fontSize = '14px';
+  popupText.style.lineHeight = '1.4';
   popupText.textContent = message;
 
-  // Show link to review decisions if available
-  if (event.search_query_id) {
-    const link = `https://greataml.com/search/searchdecision/${event.search_query_id}`;
-    popupLink.value = link;
-    popupLink.style.display = 'block';
-    popupLink.placeholder = 'Click to review detailed decisions';
+  // Hide the link field initially
+  popupLink.style.display = 'none';
+
+  // Replace the close button with appropriate action buttons
+  const existingButtons = popup.querySelectorAll('.action-btn');
+  existingButtons.forEach(btn => btn.remove());
+
+  const buttonContainer = document.createElement('div');
+  buttonContainer.style.cssText = `
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+  `;
+
+  if (event.isSanctioned) {
+    // If sanctioned, only show close button
+    const closeButton = document.createElement('button');
+    closeButton.textContent = 'Close';
+    closeButton.className = 'action-btn';
+    closeButton.style.cssText = `
+      padding: 10px 20px;
+      background-color: #dc3545;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+    `;
+    closeButton.onclick = () => {
+      popup.style.display = 'none';
+      popupText.style.whiteSpace = 'normal';
+    };
+    buttonContainer.appendChild(closeButton);
   } else {
-    popupLink.style.display = 'none';
+    // If not sanctioned, show continue onboarding button
+    const continueButton = document.createElement('button');
+    continueButton.textContent = 'Continue Onboarding';
+    continueButton.className = 'action-btn';
+    continueButton.style.cssText = `
+      padding: 10px 20px;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-right: 10px;
+    `;
+    continueButton.onclick = () => {
+      // Navigate to onboarding page
+      navigateToOnboarding(event.customerId);
+      popup.style.display = 'none';
+      popupText.style.whiteSpace = 'normal';
+    };
+
+    const closeButton = document.createElement('button');
+    closeButton.textContent = 'Close';
+    closeButton.className = 'action-btn';
+    closeButton.style.cssText = `
+      padding: 10px 20px;
+      background-color: #6c757d;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+    `;
+    closeButton.onclick = () => {
+      popup.style.display = 'none';
+      popupText.style.whiteSpace = 'normal';
+    };
+
+    buttonContainer.appendChild(continueButton);
+    buttonContainer.appendChild(closeButton);
   }
 
+  popup.appendChild(buttonContainer);
   popup.style.display = 'block';
-  
-  // Auto-select link for easy copying
-  if (event.search_query_id) {
-    popupLink.select();
-  }
+}
+
+// --- Navigate to onboarding function ---
+function navigateToOnboarding(customerId) {
+  // Create a simple onboarding page or section
+  showOnboardingPage(customerId);
+}
+
+// --- Show onboarding page ---
+function showOnboardingPage(customerId) {
+  // Create onboarding overlay
+  const onboardingOverlay = document.createElement('div');
+  onboardingOverlay.id = 'onboardingOverlay';
+  onboardingOverlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 15000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  `;
+
+  const onboardingContent = document.createElement('div');
+  onboardingContent.style.cssText = `
+    background: white;
+    padding: 40px;
+    border-radius: 10px;
+    max-width: 600px;
+    width: 90%;
+    max-height: 80%;
+    overflow-y: auto;
+  `;
+
+  onboardingContent.innerHTML = `
+    <h2 style="color: #004080; margin-top: 0;">Customer Onboarding - ${customerId}</h2>
+    <p style="color: #28a745; font-weight: bold;">✅ Screening Passed - Proceeding with onboarding</p>
+    
+    <h3>Next Steps:</h3>
+    <div style="background: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;">
+      <h4>1. Document Collection</h4>
+      <p>• Identity verification documents</p>
+      <p>• Address proof</p>
+      <p>• Financial information</p>
+      
+      <h4>2. Risk Assessment</h4>
+      <p>• Customer due diligence</p>
+      <p>• Source of funds verification</p>
+      <p>• Business relationship assessment</p>
+      
+      <h4>3. Account Setup</h4>
+      <p>• Product selection</p>
+      <p>• Terms and conditions</p>
+      <p>• Account activation</p>
+    </div>
+    
+    <div style="text-align: center; margin-top: 30px;">
+      <button id="startOnboarding" style="
+        padding: 12px 30px;
+        background-color: #007ACC;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 16px;
+        margin-right: 10px;
+      ">Start Onboarding Process</button>
+      
+      <button id="closeOnboarding" style="
+        padding: 12px 30px;
+        background-color: #6c757d;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 16px;
+      ">Close</button>
+    </div>
+  `;
+
+  onboardingOverlay.appendChild(onboardingContent);
+  document.body.appendChild(onboardingOverlay);
+
+  // Add event listeners
+  document.getElementById('startOnboarding').onclick = () => {
+    showNotification(`Onboarding process started for customer ${customerId}`, 'success');
+    logMessage(`Onboarding initiated for customer ${customerId}`, 'success');
+    onboardingOverlay.remove();
+  };
+
+  document.getElementById('closeOnboarding').onclick = () => {
+    onboardingOverlay.remove();
+  };
+
+  // Close on background click
+  onboardingOverlay.onclick = (e) => {
+    if (e.target === onboardingOverlay) {
+      onboardingOverlay.remove();
+    }
+  };
 }
 
 // --- Call searchPersonCustomer ---
