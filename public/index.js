@@ -613,6 +613,16 @@ closeBtn.addEventListener('click', () => {
   popup.style.display = 'none';
   popupText.style.whiteSpace = 'normal'; // Reset text styling
   
+  // Remove any action buttons that might be added
+  const actionButtons = popup.querySelectorAll('.action-btn');
+  actionButtons.forEach(btn => btn.remove());
+  
+  // Show the original close button if it was hidden
+  const originalCloseBtn = popup.querySelector('span');
+  if (originalCloseBtn) {
+    originalCloseBtn.style.display = 'block';
+  }
+  
   const sel = window.getSelection();
   sel.removeAllRanges();
 });
