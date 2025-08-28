@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Customer Onboarding</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <img src="logo.png" alt="Company Logo" />
+    <h1>Customer Onboarding</h1>
+  </header>
+
+  <div class="container" style="max-width: 800px; margin: 30px auto;">
+    <section style="background: white; border-radius: 8px; box-shadow: 0 3px 8px rgb(0 0 0 / 0.1); padding: 30px;">
+      
+      <!-- Customer Info Header -->
+      <div id="customerHeader" style="background: #e9f1fb; padding: 20px; border-radius: 6px; margin-bottom: 30px; text-align: center;">
+        <h2 style="color: #004080; margin: 0;">Customer ID: <span id="customerIdDisplay">Loading...</span></h2>
+        <p style="color: #28a745; font-weight: bold; margin: 10px 0 0 0;">✅ Screening Passed - Ready for Onboarding</p>
+      </div>
+
+      <!-- Navigation Back -->
+      <div style="margin-bottom: 20px;">
+        <a href="index.html" style="color: #007ACC; text-decoration: none; font-weight: 500;">← Back to Main Application</a>
+      </div>
+
+      <!-- Onboarding Form Container -->
+      <div id="onboardingFormContainer">
+        <h3 style="color: #004080; margin-bottom: 20px;">Customer Onboarding Form</h3>
+        <p style="color: #666; margin-bottom: 30px;">Please complete the following information to proceed with the onboarding process.</p>
+
+        <!-- Placeholder for future onboarding fields -->
+        <div style="background: #f8f9fa; padding: 30px; border-radius: 6px; text-align: center; border: 2px dashed #dee2e6;">
+          <h4 style="color: #6c757d; margin-bottom: 15px;">Onboarding Fields Coming Soon</h4>
+          <p style="color: #6c757d; margin-bottom: 20px;">This is where you will add your onboarding form fields such as:</p>
+          <ul style="text-align: left; color: #6c757d; max-width: 400px; margin: 0 auto;">
+            <li>Personal Information</li>
+            <li>Contact Details</li>
+            <li>Document Upload</li>
+            <li>Risk Assessment Questions</li>
+            <li>Product Selection</li>
+            <li>Terms & Conditions</li>
+          </ul>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="text-align: center; margin-top: 40px;">
+          <button id="saveProgress" style="
+            padding: 12px 24px;
+            background-color: #007ACC;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+          ">Save Progress</button>
+          
+          <button id="submitOnboarding" style="
+            padding: 12px 24px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+          ">Complete Onboarding</button>
+          
+          <button id="cancelOnboarding" style="
+            padding: 12px 24px;
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+          ">Cancel</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // Get customer ID from URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const customerId = urlParams.get('customerId');
+    
+    if (customerId) {
+      document.getElementById('customerIdDisplay').textContent = customerId;
+    } else {
+      document.getElementById('customerIdDisplay').textContent = 'Unknown';
+    }
+
+    // Button event handlers
+    document.getElementById('saveProgress').addEventListener('click', () => {
+      alert(`Progress saved for customer ${customerId}`);
+    });
+
+    document.getElementById('submitOnboarding').addEventListener('click', () => {
+      if (confirm(`Complete onboarding for customer ${customerId}?`)) {
+        alert(`Onboarding completed for customer ${customerId}`);
+        // You can add actual submission logic here
+        window.location.href = 'index.html';
+      }
+    });
+
+    document.getElementById('cancelOnboarding').addEventListener('click', () => {
+      if (confirm('Cancel onboarding process?')) {
+        window.location.href = 'index.html';
+      }
+    });
+  </script>
+</body>
+</html>

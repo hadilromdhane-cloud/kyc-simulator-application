@@ -683,105 +683,14 @@ function showScreeningResultsPopup(event) {
 
 // --- Navigate to onboarding function ---
 function navigateToOnboarding(customerId) {
-  // Create a simple onboarding page or section
-  showOnboardingPage(customerId);
+  // Navigate to a new onboarding page
+  window.location.href = `onboarding.html?customerId=${customerId}`;
 }
 
 // --- Show onboarding page ---
 function showOnboardingPage(customerId) {
-  // Create onboarding overlay
-  const onboardingOverlay = document.createElement('div');
-  onboardingOverlay.id = 'onboardingOverlay';
-  onboardingOverlay.style.cssText = `
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.8);
-    z-index: 15000;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  `;
-
-  const onboardingContent = document.createElement('div');
-  onboardingContent.style.cssText = `
-    background: white;
-    padding: 40px;
-    border-radius: 10px;
-    max-width: 600px;
-    width: 90%;
-    max-height: 80%;
-    overflow-y: auto;
-  `;
-
-  onboardingContent.innerHTML = `
-    <h2 style="color: #004080; margin-top: 0;">Customer Onboarding - ${customerId}</h2>
-    <p style="color: #28a745; font-weight: bold;">✅ Screening Passed - Proceeding with onboarding</p>
-    
-    <h3>Next Steps:</h3>
-    <div style="background: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;">
-      <h4>1. Document Collection</h4>
-      <p>• Identity verification documents</p>
-      <p>• Address proof</p>
-      <p>• Financial information</p>
-      
-      <h4>2. Risk Assessment</h4>
-      <p>• Customer due diligence</p>
-      <p>• Source of funds verification</p>
-      <p>• Business relationship assessment</p>
-      
-      <h4>3. Account Setup</h4>
-      <p>• Product selection</p>
-      <p>• Terms and conditions</p>
-      <p>• Account activation</p>
-    </div>
-    
-    <div style="text-align: center; margin-top: 30px;">
-      <button id="startOnboarding" style="
-        padding: 12px 30px;
-        background-color: #007ACC;
-        color: white;
-        border: none;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 16px;
-        margin-right: 10px;
-      ">Start Onboarding Process</button>
-      
-      <button id="closeOnboarding" style="
-        padding: 12px 30px;
-        background-color: #6c757d;
-        color: white;
-        border: none;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 16px;
-      ">Close</button>
-    </div>
-  `;
-
-  onboardingOverlay.appendChild(onboardingContent);
-  document.body.appendChild(onboardingOverlay);
-
-  // Add event listeners
-  document.getElementById('startOnboarding').onclick = () => {
-    showNotification(`Onboarding process started for customer ${customerId}`, 'success');
-    logMessage(`Onboarding initiated for customer ${customerId}`, 'success');
-    onboardingOverlay.remove();
-  };
-
-  document.getElementById('closeOnboarding').onclick = () => {
-    onboardingOverlay.remove();
-  };
-
-  // Close on background click
-  onboardingOverlay.onclick = (e) => {
-    if (e.target === onboardingOverlay) {
-      onboardingOverlay.remove();
-    }
-  };
+  // This function is no longer needed since we're navigating to a new page
+  // Keeping it for backward compatibility but it won't be called
 }
 
 // --- Call searchPersonCustomer ---
