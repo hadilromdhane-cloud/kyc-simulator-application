@@ -613,9 +613,11 @@ closeBtn.addEventListener('click', () => {
   popup.style.display = 'none';
   popupText.style.whiteSpace = 'normal'; // Reset text styling
   
-  // Remove any action buttons that might be added
+  // Remove any action buttons and containers that might be added
   const actionButtons = popup.querySelectorAll('.action-btn');
   actionButtons.forEach(btn => btn.remove());
+  const actionContainers = popup.querySelectorAll('.action-btn-container');
+  actionContainers.forEach(container => container.remove());
   
   // Show the original close button if it was hidden
   const originalCloseBtn = popup.querySelector('span');
