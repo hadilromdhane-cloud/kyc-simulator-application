@@ -88,7 +88,7 @@ function createNotificationElements() {
   notificationContainer.id = 'notificationContainer';
   notificationContainer.style.cssText = `
     position: fixed;
-    top: 20px;
+    top: 130px;
     right: 20px;
     z-index: 10000;
     max-width: 350px;
@@ -101,8 +101,8 @@ function createNotificationElements() {
   notificationButton.innerHTML = 'Notifications';
   notificationButton.style.cssText = `
     position: fixed;
-    top: 20px;
-    right: 380px;
+    top: 85px;
+    right: 20px;
     z-index: 10000;
     padding: 10px 15px;
     background-color: #007ACC;
@@ -111,8 +111,26 @@ function createNotificationElements() {
     border-radius: 6px;
     cursor: pointer;
     font-size: 14px;
-    font-weight: 500;
+    font-weight: 600;
+    font-family: 'Roboto', sans-serif;
+    box-shadow: 0 3px 8px rgb(0 0 0 / 0.1);
+    transition: background-color 0.2s ease;
+    width: auto;
+    margin-top: 0;
+    min-width: 120px;
   `;
+  
+  // Add hover effect that matches your button styles
+  notificationButton.onmouseover = () => {
+    notificationButton.style.backgroundColor = '#004080';
+  };
+  notificationButton.onmouseout = () => {
+    const unfinishedCount = notificationsHistory.filter(n => 
+      n.source === 'Reis_KYC' && !n.isSanctioned && !n.onboardingCompleted
+    ).length;
+    notificationButton.style.backgroundColor = unfinishedCount > 0 ? '#dc3545' : '#007ACC';
+  };
+  
   notificationButton.onclick = showNotificationHistory;
   document.body.appendChild(notificationButton);
 
@@ -616,11 +634,26 @@ function showPopup(message, link = '') {
   const popupText = document.getElementById('popupText');
   const popupLink = document.getElementById('popupLink');
 
+  // Clean up any previous content first
+  const extraButtons = popup.querySelectorAll('button:not(#closePopup)');
+  extraButtons.forEach(btn => btn.remove());
+  const extraDivs = popup.querySelectorAll('div');
+  extraDivs.forEach(div => div.remove());
+
+  // Reset text styling
+  popupText.style.whiteSpace = 'normal';
+  popupText.style.fontSize = '';
+  popupText.style.lineHeight = '';
+  
+  // Set content
   popupText.textContent = message;
 
   if (link) {
     popupLink.value = link;
     popupLink.style.display = 'block';
+    popupLink.readOnly = true;
+    popupLink.onclick = null;
+    popupLink.style.cursor = 'default';
   } else {
     popupLink.style.display = 'none';
   }
@@ -812,11 +845,30 @@ closeBtn.addEventListener('click', () => {
   const popupText = document.getElementById('popupText');
   const popupLink = document.getElementById('popupLink');
   
+  // Hide popup
   popup.style.display = 'none';
-  popupText.style.whiteSpace = 'normal'; // Reset text styling
-  popupLink.onclick = null; // Remove any click handlers
+  
+  // Reset all popup content and styling
+  popupText.style.whiteSpace = 'normal';
+  popupText.style.fontSize = '';
+  popupText.style.lineHeight = '';
+  popupText.textContent = '';
+  
+  // Reset link field
+  popupLink.onclick = null;
   popupLink.style.cursor = 'default';
+  popupLink.style.display = 'none';
   popupLink.readOnly = true;
+  popupLink.value = '';
+  popupLink.placeholder = '';
+  
+  // Remove any extra buttons that might have been added
+  const extraButtons = popup.querySelectorAll('button:not(#closePopup)');
+  extraButtons.forEach(btn => btn.remove());
+  
+  // Remove any extra divs that might have been added
+  const extraDivs = popup.querySelectorAll('div');
+  extraDivs.forEach(div => div.remove());
   
   const sel = window.getSelection();
   sel.removeAllRanges();
