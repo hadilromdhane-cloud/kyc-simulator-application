@@ -456,6 +456,8 @@ function setupEventPolling() {
           
           // Handle Reis KYC screening results with detailed popup
           if (event.source === 'Reis_KYC' && event.customerId) {
+            console.log('Processing Reis KYC event:', event);
+            
             // Save to history
             const existingIndex = notificationsHistory.findIndex(n => n.customerId === event.customerId && n.search_query_id === event.search_query_id);
             if (existingIndex === -1) {
@@ -468,6 +470,7 @@ function setupEventPolling() {
               updateNotificationBadge();
             }
             
+            console.log('About to show screening popup');
             showScreeningResultsPopup(event);
           } else if (event.search_query_id) {
             const link = `https://greataml.com/search/searchdecision/${event.search_query_id}`;
