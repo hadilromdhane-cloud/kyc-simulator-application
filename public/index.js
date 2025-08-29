@@ -83,22 +83,227 @@ const defaultValues = {
 
 // --- Notification System ---
 function createNotificationElements() {
-  // Create notification container only
+  // Create notification container
   const notificationContainer = document.createElement('div');
   notificationContainer.id = 'notificationContainer';
   notificationContainer.style.cssText = `
     position: fixed;
-    top: 20px;
+    top: 130px;
     right: 20px;
     z-index: 10000;
     max-width: 350px;
   `;
   document.body.appendChild(notificationContainer);
+
+  // Create notifications history button
+  const notificationButton = document.createElement('button');
+  notificationButton.id = 'notificationHistoryBtn';
+  notificationButton.innerHTML = 'Notifications';
+  notificationButton.style.cssText = `
+    position: fixed;
+    top: 85px;
+    right: 20px;
+    z-index: 10000;
+    padding: 10px 15px;
+    background-color: #007ACC;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: 'Roboto', sans-serif;
+    box-shadow: 0 3px 8px rgb(0 0 0 / 0.1);
+    transition: background-color 0.2s ease;
+    width: auto;
+    margin-top: 0;
+    min-width: 120px;
+  `;
+  
+  // Add hover effect that matches your button styles
+  notificationButton.onmouseover = () => {
+    notificationButton.style.backgroundColor = '#004080';
+  };
+  notificationButton.onmouseout = () => {
+    const unfinishedCount = notificationsHistory.filter(n => 
+      n.source === 'Reis_KYC' && !n.isSanctioned && !n.onboardingCompleted
+    ).length;
+    notificationButton.style.backgroundColor = unfinishedCount > 0 ? '#dc3545' : '#007ACC';
+  };
+  
+  notificationButton.onclick = showNotificationHistory;
+  document.body.appendChild(notificationButton);
+
+  // Update button badge
+  updateNotificationBadge();
 }
 
-// Function to make elements draggable (keep for future use but not used now)
-function makeDraggable(element, handle = null) {
-  // Keep function but not used since we removed draggable elements
+function updateNotificationBadge() {
+  const button = document.getElementById('notificationHistoryBtn');
+  if (!button) return;
+
+  const unfinishedCount = notificationsHistory.filter(n => 
+    n.source === 'Reis_KYC' && !n.isSanctioned && !n.onboardingCompleted
+  ).length;
+
+  if (unfinishedCount > 0) {
+    button.innerHTML = `Notifications (${unfinishedCount})`;
+    button.style.backgroundColor = '#dc3545'; // Red background for pending items
+  } else {
+    button.innerHTML = 'Notifications';
+    button.style.backgroundColor = '#007ACC'; // Default blue
+  }
+}
+
+function showNotificationHistory() {
+  // Create history overlay
+  const historyOverlay = document.createElement('div');
+  historyOverlay.id = 'notificationHistoryOverlay';
+  historyOverlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 15000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  `;
+
+  const historyContent = document.createElement('div');
+  historyContent.style.cssText = `
+    background: white;
+    padding: 30px;
+    border-radius: 10px;
+    max-width: 800px;
+    width: 90%;
+    max-height: 80%;
+    overflow-y: auto;
+  `;
+
+  let historyHTML = `
+    <h2 style="color: #004080; margin-top: 0; text-align: center;">Notifications History</h2>
+    <div style="margin-bottom: 20px;">
+      <button id="clearHistory" style="background: #dc3545; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;">Clear All History</button>
+    </div>
+  `;
+
+  if (notificationsHistory.length === 0) {
+    historyHTML += '<p style="text-align: center; color: #666;">No notifications yet.</p>';
+  } else {
+    // Sort by timestamp, newest first
+    const sortedHistory = [...notificationsHistory].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    
+    sortedHistory.forEach((notification, index) => {
+      const isReis = notification.source === 'Reis_KYC';
+      const canContinueOnboarding = isReis && !notification.isSanctioned && !notification.onboardingCompleted;
+      const statusColor = notification.isSanctioned ? '#dc3545' : '#28a745';
+      const statusText = notification.isSanctioned ? 'SANCTIONED' : 'CLEARED';
+      
+      historyHTML += `
+        <div style="
+          border: 1px solid #ddd;
+          border-radius: 8px;
+          padding: 15px;
+          margin-bottom: 15px;
+          background: ${canContinueOnboarding ? '#f8f9fa' : 'white'};
+          ${canContinueOnboarding ? 'border-left: 4px solid #007ACC;' : ''}
+        ">
+          <div style="display: flex; justify-content: between; align-items: center; margin-bottom: 10px;">
+            <h4 style="margin: 0; color: #004080;">Customer ${notification.customerId}</h4>
+            <span style="
+              background: ${statusColor};
+              color: white;
+              padding: 2px 8px;
+              border-radius: 12px;
+              font-size: 12px;
+              font-weight: bold;
+            ">${statusText}</span>
+          </div>
+          
+          ${isReis ? `
+            <div style="font-size: 14px; margin: 5px 0;">
+              <span style="color: ${notification.isPEP ? '#ffc107' : '#28a745'};">PEP: ${notification.isPEP ? 'YES' : 'NO'}</span> | 
+              <span style="color: ${notification.isSanctioned ? '#dc3545' : '#28a745'};">Sanctions: ${notification.isSanctioned ? 'YES' : 'NO'}</span> | 
+              <span style="color: ${notification.isAdverseMedia ? '#ffc107' : '#28a745'};">Adverse Media: ${notification.isAdverseMedia ? 'YES' : 'NO'}</span>
+            </div>
+          ` : ''}
+          
+          <p style="margin: 10px 0; color: #666; font-size: 14px;">${notification.message}</p>
+          <small style="color: #999;">${new Date(notification.timestamp).toLocaleString()}</small>
+          
+          ${canContinueOnboarding ? `
+            <div style="margin-top: 15px;">
+              <button onclick="continueOnboardingFromHistory('${notification.customerId}', ${index})" style="
+                background: #28a745;
+                color: white;
+                border: none;
+                padding: 8px 15px;
+                border-radius: 5px;
+                cursor: pointer;
+                font-size: 14px;
+              ">Continue Onboarding</button>
+            </div>
+          ` : ''}
+        </div>
+      `;
+    });
+  }
+
+  historyHTML += `
+    <div style="text-align: center; margin-top: 20px;">
+      <button onclick="closeNotificationHistory()" style="
+        background: #6c757d;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 14px;
+      ">Close</button>
+    </div>
+  `;
+
+  historyContent.innerHTML = historyHTML;
+  historyOverlay.appendChild(historyContent);
+  document.body.appendChild(historyOverlay);
+
+  // Add event listener for clear history
+  document.getElementById('clearHistory').onclick = () => {
+    if (confirm('Clear all notification history?')) {
+      notificationsHistory = [];
+      localStorage.setItem('notificationsHistory', JSON.stringify(notificationsHistory));
+      updateNotificationBadge();
+      closeNotificationHistory();
+    }
+  };
+
+  // Close on background click
+  historyOverlay.onclick = (e) => {
+    if (e.target === historyOverlay) {
+      closeNotificationHistory();
+    }
+  };
+}
+
+function closeNotificationHistory() {
+  const overlay = document.getElementById('notificationHistoryOverlay');
+  if (overlay) {
+    overlay.remove();
+  }
+}
+
+function continueOnboardingFromHistory(customerId, historyIndex) {
+  // Mark as onboarding started
+  notificationsHistory[historyIndex].onboardingCompleted = false;
+  notificationsHistory[historyIndex].onboardingStarted = true;
+  localStorage.setItem('notificationsHistory', JSON.stringify(notificationsHistory));
+  
+  // Navigate to onboarding
+  window.location.href = `onboarding.html?customerId=${customerId}`;
+  updateNotificationBadge();
 }
 
 function showNotification(message, type = 'info', duration = 5000) {
@@ -181,9 +386,11 @@ function updateConnectionStatus(connected) {
 }
 
 // --- POLLING-BASED Event System (instead of SSE) ---
-let lastEventId = 0;
+let lastEventId = parseInt(localStorage.getItem('lastEventId')) || 0;
 let pollingInterval = null;
 const pollingFrequency = 2000; // Poll every 2 seconds
+let notificationsHistory = JSON.parse(localStorage.getItem('notificationsHistory')) || [];
+let notificationsHistory = JSON.parse(localStorage.getItem('notificationsHistory')) || [];
 
 function setupEventPolling() {
   // Clear existing polling
@@ -222,9 +429,10 @@ function setupEventPolling() {
         data.events.forEach(event => {
           logMessage(`Event received: ${JSON.stringify(event)}`, 'info');
           
-          // Update last event ID
+          // Update last event ID and save to localStorage
           if (event.id > lastEventId) {
             lastEventId = event.id;
+            localStorage.setItem('lastEventId', lastEventId.toString());
           }
 
           // Show notification based on event data
@@ -249,6 +457,21 @@ function setupEventPolling() {
           
           // Handle Reis KYC screening results with detailed popup
           if (event.source === 'Reis_KYC' && event.customerId) {
+            console.log('Processing Reis KYC event:', event);
+            
+            // Save to history
+            const existingIndex = notificationsHistory.findIndex(n => n.customerId === event.customerId && n.search_query_id === event.search_query_id);
+            if (existingIndex === -1) {
+              notificationsHistory.unshift(event); // Add to beginning
+              // Keep only last 50 notifications
+              if (notificationsHistory.length > 50) {
+                notificationsHistory = notificationsHistory.slice(0, 50);
+              }
+              localStorage.setItem('notificationsHistory', JSON.stringify(notificationsHistory));
+              updateNotificationBadge();
+            }
+            
+            console.log('About to show screening popup');
             showScreeningResultsPopup(event);
           } else if (event.search_query_id) {
             const link = `https://greataml.com/search/searchdecision/${event.search_query_id}`;
@@ -415,11 +638,26 @@ function showPopup(message, link = '') {
   const popupText = document.getElementById('popupText');
   const popupLink = document.getElementById('popupLink');
 
+  // Clean up any previous content first
+  const extraButtons = popup.querySelectorAll('button:not(#closePopup)');
+  extraButtons.forEach(btn => btn.remove());
+  const extraDivs = popup.querySelectorAll('div');
+  extraDivs.forEach(div => div.remove());
+
+  // Reset text styling
+  popupText.style.whiteSpace = 'normal';
+  popupText.style.fontSize = '';
+  popupText.style.lineHeight = '';
+  
+  // Set content
   popupText.textContent = message;
 
   if (link) {
     popupLink.value = link;
     popupLink.style.display = 'block';
+    popupLink.readOnly = true;
+    popupLink.onclick = null;
+    popupLink.style.cursor = 'default';
   } else {
     popupLink.style.display = 'none';
   }
@@ -609,19 +847,32 @@ const closeBtn = document.getElementById('closePopup');
 closeBtn.addEventListener('click', () => {
   const popup = document.getElementById('popup');
   const popupText = document.getElementById('popupText');
+  const popupLink = document.getElementById('popupLink');
   
+  // Hide popup
   popup.style.display = 'none';
-  popupText.style.whiteSpace = 'normal'; // Reset text styling
   
-  // Remove any action buttons that might be added
-  const actionButtons = popup.querySelectorAll('.action-btn');
-  actionButtons.forEach(btn => btn.remove());
+  // Reset all popup content and styling
+  popupText.style.whiteSpace = 'normal';
+  popupText.style.fontSize = '';
+  popupText.style.lineHeight = '';
+  popupText.textContent = '';
   
-  // Show the original close button if it was hidden
-  const originalCloseBtn = popup.querySelector('span');
-  if (originalCloseBtn) {
-    originalCloseBtn.style.display = 'block';
-  }
+  // Reset link field
+  popupLink.onclick = null;
+  popupLink.style.cursor = 'default';
+  popupLink.style.display = 'none';
+  popupLink.readOnly = true;
+  popupLink.value = '';
+  popupLink.placeholder = '';
+  
+  // Remove any extra buttons that might have been added
+  const extraButtons = popup.querySelectorAll('button:not(#closePopup)');
+  extraButtons.forEach(btn => btn.remove());
+  
+  // Remove any extra divs that might have been added
+  const extraDivs = popup.querySelectorAll('div');
+  extraDivs.forEach(div => div.remove());
   
   const sel = window.getSelection();
   sel.removeAllRanges();
@@ -670,3 +921,353 @@ window.addEventListener('beforeunload', function() {
     clearInterval(pollingInterval);
   }
 });
+
+// --- Notification History Functions ---
+function updateNotificationBadge() {
+  const button = document.getElementById('notificationHistoryBtn');
+  if (!button) return;
+
+  const unfinishedCount = notificationsHistory.filter(n => 
+    n.source === 'Reis_KYC' && !n.isSanctioned && !n.onboardingCompleted
+  ).length;
+
+  if (unfinishedCount > 0) {
+    button.innerHTML = `Notifications (${unfinishedCount})`;
+    button.style.backgroundColor = '#dc3545'; // Red background for pending items
+  } else {
+    button.innerHTML = 'Notifications';
+    button.style.backgroundColor = '#007ACC'; // Default blue
+  }
+}
+
+function showNotificationHistory() {
+  // Create history overlay
+  const historyOverlay = document.createElement('div');
+  historyOverlay.id = 'notificationHistoryOverlay';
+  historyOverlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 15000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  `;
+
+  const historyContent = document.createElement('div');
+  historyContent.style.cssText = `
+    background: white;
+    padding: 30px;
+    border-radius: 10px;
+    max-width: 800px;
+    width: 90%;
+    max-height: 80%;
+    overflow-y: auto;
+  `;
+
+  let historyHTML = `
+    <h2 style="color: #004080; margin-top: 0; text-align: center;">Notifications History</h2>
+    <div style="margin-bottom: 20px;">
+      <button id="clearHistory" style="background: #dc3545; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;">Clear All History</button>
+    </div>
+  `;
+
+  if (notificationsHistory.length === 0) {
+    historyHTML += '<p style="text-align: center; color: #666;">No notifications yet.</p>';
+  } else {
+    // Sort by timestamp, newest first
+    const sortedHistory = [...notificationsHistory].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    
+    sortedHistory.forEach((notification, index) => {
+      const isReis = notification.source === 'Reis_KYC';
+      const canContinueOnboarding = isReis && !notification.isSanctioned && !notification.onboardingCompleted;
+      const statusColor = notification.isSanctioned ? '#dc3545' : '#28a745';
+      const statusText = notification.isSanctioned ? 'SANCTIONED' : 'CLEARED';
+      
+      historyHTML += `
+        <div style="
+          border: 1px solid #ddd;
+          border-radius: 8px;
+          padding: 15px;
+          margin-bottom: 15px;
+          background: ${canContinueOnboarding ? '#f8f9fa' : 'white'};
+          ${canContinueOnboarding ? 'border-left: 4px solid #007ACC;' : ''}
+        ">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h4 style="margin: 0; color: #004080;">Customer ${notification.customerId}</h4>
+            <span style="
+              background: ${statusColor};
+              color: white;
+              padding: 2px 8px;
+              border-radius: 12px;
+              font-size: 12px;
+              font-weight: bold;
+            ">${statusText}</span>
+          </div>
+          
+          ${isReis ? `
+            <div style="font-size: 14px; margin: 5px 0;">
+              <span style="color: ${notification.isPEP ? '#ffc107' : '#28a745'};">PEP: ${notification.isPEP ? 'YES' : 'NO'}</span> | 
+              <span style="color: ${notification.isSanctioned ? '#dc3545' : '#28a745'};">Sanctions: ${notification.isSanctioned ? 'YES' : 'NO'}</span> | 
+              <span style="color: ${notification.isAdverseMedia ? '#ffc107' : '#28a745'};">Adverse Media: ${notification.isAdverseMedia ? 'YES' : 'NO'}</span>
+            </div>
+          ` : ''}
+          
+          <p style="margin: 10px 0; color: #666; font-size: 14px;">${notification.message}</p>
+          <small style="color: #999;">${new Date(notification.timestamp).toLocaleString()}</small>
+          
+          ${canContinueOnboarding ? `
+            <div style="margin-top: 15px;">
+              <button onclick="continueOnboardingFromHistory('${notification.customerId}', ${index})" style="
+                background: #28a745;
+                color: white;
+                border: none;
+                padding: 8px 15px;
+                border-radius: 5px;
+                cursor: pointer;
+                font-size: 14px;
+              ">Continue Onboarding</button>
+            </div>
+          ` : ''}
+        </div>
+      `;
+    });
+  }
+
+  historyHTML += `
+    <div style="text-align: center; margin-top: 20px;">
+      <button onclick="closeNotificationHistory()" style="
+        background: #6c757d;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 14px;
+      ">Close</button>
+    </div>
+  `;
+
+  historyContent.innerHTML = historyHTML;
+  historyOverlay.appendChild(historyContent);
+  document.body.appendChild(historyOverlay);
+
+  // Add event listener for clear history
+  document.getElementById('clearHistory').onclick = () => {
+    if (confirm('Clear all notification history?')) {
+      notificationsHistory = [];
+      localStorage.setItem('notificationsHistory', JSON.stringify(notificationsHistory));
+      updateNotificationBadge();
+      closeNotificationHistory();
+    }
+  };
+
+  // Close on background click
+  historyOverlay.onclick = (e) => {
+    if (e.target === historyOverlay) {
+      closeNotificationHistory();
+    }
+  };
+}
+
+function closeNotificationHistory() {
+  const overlay = document.getElementById('notificationHistoryOverlay');
+  if (overlay) {
+    overlay.remove();
+  }
+}
+
+function continueOnboardingFromHistory(customerId, historyIndex) {
+  // Mark as onboarding started
+  notificationsHistory[historyIndex].onboardingCompleted = false;
+  notificationsHistory[historyIndex].onboardingStarted = true;
+  localStorage.setItem('notificationsHistory', JSON.stringify(notificationsHistory));
+  
+  // Navigate to onboarding
+  window.location.href = `onboarding.html?customerId=${customerId}`;
+  updateNotificationBadge();
+}
+
+// Global functions for HTML onclick handlers
+window.closeNotificationHistory = closeNotificationHistory;
+window.continueOnboardingFromHistory = continueOnboardingFromHistory;
+
+// --- Notification History Functions ---
+function updateNotificationBadge() {
+  const button = document.getElementById('notificationHistoryBtn');
+  if (!button) return;
+
+  const unfinishedCount = notificationsHistory.filter(n => 
+    n.source === 'Reis_KYC' && !n.isSanctioned && !n.onboardingCompleted
+  ).length;
+
+  if (unfinishedCount > 0) {
+    button.innerHTML = `Notifications (${unfinishedCount})`;
+    button.style.backgroundColor = '#dc3545'; // Red background for pending items
+  } else {
+    button.innerHTML = 'Notifications';
+    button.style.backgroundColor = '#007ACC'; // Default blue
+  }
+}
+
+function showNotificationHistory() {
+  // Create history overlay
+  const historyOverlay = document.createElement('div');
+  historyOverlay.id = 'notificationHistoryOverlay';
+  historyOverlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 15000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  `;
+
+  const historyContent = document.createElement('div');
+  historyContent.style.cssText = `
+    background: white;
+    padding: 30px;
+    border-radius: 10px;
+    max-width: 800px;
+    width: 90%;
+    max-height: 80%;
+    overflow-y: auto;
+  `;
+
+  let historyHTML = `
+    <h2 style="color: #004080; margin-top: 0; text-align: center;">Notifications History</h2>
+    <div style="margin-bottom: 20px;">
+      <button id="clearHistory" style="background: #dc3545; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;">Clear All History</button>
+    </div>
+  `;
+
+  if (notificationsHistory.length === 0) {
+    historyHTML += '<p style="text-align: center; color: #666;">No notifications yet.</p>';
+  } else {
+    // Sort by timestamp, newest first
+    const sortedHistory = [...notificationsHistory].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    
+    sortedHistory.forEach((notification, index) => {
+      const isReis = notification.source === 'Reis_KYC';
+      const canContinueOnboarding = isReis && !notification.isSanctioned && !notification.onboardingCompleted;
+      const statusColor = notification.isSanctioned ? '#dc3545' : '#28a745';
+      const statusText = notification.isSanctioned ? 'SANCTIONED' : 'CLEARED';
+      
+      historyHTML += `
+        <div style="
+          border: 1px solid #ddd;
+          border-radius: 8px;
+          padding: 15px;
+          margin-bottom: 15px;
+          background: ${canContinueOnboarding ? '#f8f9fa' : 'white'};
+          ${canContinueOnboarding ? 'border-left: 4px solid #007ACC;' : ''}
+        ">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h4 style="margin: 0; color: #004080;">Customer ${notification.customerId}</h4>
+            <span style="
+              background: ${statusColor};
+              color: white;
+              padding: 2px 8px;
+              border-radius: 12px;
+              font-size: 12px;
+              font-weight: bold;
+            ">${statusText}</span>
+          </div>
+          
+          ${isReis ? `
+            <div style="font-size: 14px; margin: 5px 0;">
+              <span style="color: ${notification.isPEP ? '#ffc107' : '#28a745'};">PEP: ${notification.isPEP ? 'YES' : 'NO'}</span> | 
+              <span style="color: ${notification.isSanctioned ? '#dc3545' : '#28a745'};">Sanctions: ${notification.isSanctioned ? 'YES' : 'NO'}</span> | 
+              <span style="color: ${notification.isAdverseMedia ? '#ffc107' : '#28a745'};">Adverse Media: ${notification.isAdverseMedia ? 'YES' : 'NO'}</span>
+            </div>
+          ` : ''}
+          
+          <p style="margin: 10px 0; color: #666; font-size: 14px;">${notification.message}</p>
+          <small style="color: #999;">${new Date(notification.timestamp).toLocaleString()}</small>
+          
+          ${canContinueOnboarding ? `
+            <div style="margin-top: 15px;">
+              <button onclick="continueOnboardingFromHistory('${notification.customerId}', ${index})" style="
+                background: #28a745;
+                color: white;
+                border: none;
+                padding: 8px 15px;
+                border-radius: 5px;
+                cursor: pointer;
+                font-size: 14px;
+              ">Continue Onboarding</button>
+            </div>
+          ` : ''}
+        </div>
+      `;
+    });
+  }
+
+  historyHTML += `
+    <div style="text-align: center; margin-top: 20px;">
+      <button onclick="closeNotificationHistory()" style="
+        background: #6c757d;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 14px;
+      ">Close</button>
+    </div>
+  `;
+
+  historyContent.innerHTML = historyHTML;
+  historyOverlay.appendChild(historyContent);
+  document.body.appendChild(historyOverlay);
+
+  // Add event listener for clear history
+  document.getElementById('clearHistory').onclick = () => {
+    if (confirm('Clear all notification history?')) {
+      notificationsHistory = [];
+      localStorage.setItem('notificationsHistory', JSON.stringify(notificationsHistory));
+      updateNotificationBadge();
+      closeNotificationHistory();
+    }
+  };
+
+  // Close on background click
+  historyOverlay.onclick = (e) => {
+    if (e.target === historyOverlay) {
+      closeNotificationHistory();
+    }
+  };
+}
+
+function closeNotificationHistory() {
+  const overlay = document.getElementById('notificationHistoryOverlay');
+  if (overlay) {
+    overlay.remove();
+  }
+}
+
+function continueOnboardingFromHistory(customerId, historyIndex) {
+  // Mark as onboarding started
+  notificationsHistory[historyIndex].onboardingCompleted = false;
+  notificationsHistory[historyIndex].onboardingStarted = true;
+  localStorage.setItem('notificationsHistory', JSON.stringify(notificationsHistory));
+  
+  // Navigate to onboarding
+  window.location.href = `onboarding.html?customerId=${customerId}`;
+  updateNotificationBadge();
+}
+
+// Global functions for HTML onclick handlers
+window.closeNotificationHistory = closeNotificationHistory;
+window.continueOnboardingFromHistory = continueOnboardingFromHistory;
+
+// Global functions for HTML onclick handlers
+window.closeNotificationHistory = closeNotificationHistory;
+window.continueOnboardingFromHistory = continueOnboardingFromHistory;
