@@ -181,7 +181,7 @@ function updateConnectionStatus(connected) {
 }
 
 // --- POLLING-BASED Event System (instead of SSE) ---
-let lastEventId = parseInt(localStorage.getItem('lastEventId')) || 0;
+let lastEventId = 0;
 let pollingInterval = null;
 const pollingFrequency = 2000; // Poll every 2 seconds
 
@@ -222,10 +222,9 @@ function setupEventPolling() {
         data.events.forEach(event => {
           logMessage(`Event received: ${JSON.stringify(event)}`, 'info');
           
-          // Update last event ID and save to localStorage
+          // Update last event ID
           if (event.id > lastEventId) {
             lastEventId = event.id;
-            localStorage.setItem('lastEventId', lastEventId.toString());
           }
 
           // Show notification based on event data
@@ -610,13 +609,19 @@ const closeBtn = document.getElementById('closePopup');
 closeBtn.addEventListener('click', () => {
   const popup = document.getElementById('popup');
   const popupText = document.getElementById('popupText');
-  const popupLink = document.getElementById('popupLink');
   
   popup.style.display = 'none';
   popupText.style.whiteSpace = 'normal'; // Reset text styling
-  popupLink.onclick = null; // Remove any click handlers
-  popupLink.style.cursor = 'default';
-  popupLink.readOnly = true;
+  
+  // Remove any action buttons that might be added
+  const actionButtons = popup.querySelectorAll('.action-btn');
+  actionButtons.forEach(btn => btn.remove());
+  
+  // Show the original close button if it was hidden
+  const originalCloseBtn = popup.querySelector('span');
+  if (originalCloseBtn) {
+    originalCloseBtn.style.display = 'block';
+  }
   
   const sel = window.getSelection();
   sel.removeAllRanges();
