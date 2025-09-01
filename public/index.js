@@ -467,7 +467,12 @@ function setupEventPolling() {
             }
             
             console.log('About to show screening popup');
-            showScreeningResultsPopup(event);
+            // Simple popup for Reis_KYC events
+            let message = `Customer ${event.customerId} screening completed.\n`;
+            message += `PEP: ${event.isPEP ? 'YES' : 'NO'}, `;
+            message += `Sanctions: ${event.isSanctioned ? 'YES' : 'NO'}, `;
+            message += `Adverse Media: ${event.isAdverseMedia ? 'YES' : 'NO'}`;
+            showPopup(message);
           } else if (event.search_query_id) {
             const link = `https://greataml.com/search/searchdecision/${event.search_query_id}`;
             showPopup('New search result available:', link);
