@@ -792,6 +792,7 @@ function showOnboardingPage(customerId) {
 }
 
 // --- Call searchPersonCustomer ---
+// --- Call searchPersonCustomer ---
 async function callSearch(entityType, containerId, responseId, isDecentralized = false) {
   if (!tenantName || !authToken) { 
     showNotification('Please authenticate first!', 'warning');
@@ -823,12 +824,15 @@ async function callSearch(entityType, containerId, responseId, isDecentralized =
     });
 
     const data = await res.json();
-    document.getElementById(responseId).textContent = JSON.stringify(data, null, 2);
+    
+    // Remove this line - no more JSON display:
+    // document.getElementById(responseId).textContent = JSON.stringify(data, null, 2);
 
     logMessage(`Search completed for ${entityType}`, 'success');
     showNotification('Search completed successfully', 'success');
 
     if (isDecentralized) {
+      // Decentralized process - show popup based on hits
       if (data.maxScore && data.maxScore > 0) {
         const link = `https://greataml.com/search/searchdecision/${data.search_query_id}`;
         logMessage(`Hits found for customer (Score: ${data.maxScore})`, 'warning');
@@ -837,15 +841,24 @@ async function callSearch(entityType, containerId, responseId, isDecentralized =
         logMessage('No hits found for customer', 'info');
         showPopup("Your customer doesn't have any hits.");
       }
+    } else {
+      // Centralized synchronous process - show different popups
+      if (data.maxScore && data.maxScore > 0) {
+        logMessage(`Hits found for customer (Score: ${data.maxScore})`, 'warning');
+        showPopup(`You can treat the customer hits in the queue: ${data.queueName || 'Default'}`);
+      } else {
+        logMessage('No hits found for customer', 'info');
+        showPopup("The customer doesn't have any hits. You can continue the onboarding.");
+      }
     }
   } catch (err) {
     const errorMsg = `Search error: ${err.message}`;
-    document.getElementById(responseId).textContent = errorMsg;
+    // Remove this line - no more JSON display:
+    // document.getElementById(responseId).textContent = errorMsg;
     logMessage(errorMsg, 'error');
     showNotification('Search failed', 'error');
   }
 }
-
 // --- Button Events ---
 const closeBtn = document.getElementById('closePopup');
 closeBtn.addEventListener('click', () => {
