@@ -749,45 +749,24 @@ function showScreeningResultsPopup(event) {
   // Hide the link field initially
   popupLink.style.display = 'none';
 
-  // Remove ALL existing buttons (including the original close button) and extra elements
-  const existingButtons = popup.querySelectorAll('button');
+  // Remove any existing action buttons first
+  const existingButtons = popup.querySelectorAll('.action-btn');
   existingButtons.forEach(btn => btn.remove());
-  const extraDivs = popup.querySelectorAll('div');
-  extraDivs.forEach(div => div.remove());
 
-  const buttonContainer = document.createElement('div');
-  buttonContainer.style.cssText = `
-    margin-top: 20px;
-    display: flex;
-    gap: 10px;
-    justify-content: center;
-  `;
-
-  if (event.isSanctioned) {
-    // If sanctioned, only show close button
-    const closeButton = document.createElement('button');
-    closeButton.textContent = 'Close';
-    closeButton.id = 'closePopup'; // Keep the same ID for consistency
-    closeButton.className = 'action-btn';
-    closeButton.style.cssText = `
-      padding: 10px 20px;
-      background-color: #dc3545;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 14px;
+  // Only add additional buttons if not sanctioned (for Continue Onboarding)
+  if (!event.isSanctioned) {
+    const buttonContainer = document.createElement('div');
+    buttonContainer.className = 'action-btn'; // Mark for cleanup
+    buttonContainer.style.cssText = `
+      margin-top: 20px;
+      display: flex;
+      gap: 10px;
+      justify-content: center;
     `;
-    closeButton.onclick = () => {
-      popup.style.display = 'none';
-      popupText.style.whiteSpace = 'normal';
-    };
-    buttonContainer.appendChild(closeButton);
-  } else {
-    // If not sanctioned, show continue onboarding button
+
+    // Only add continue onboarding button (use existing close button)
     const continueButton = document.createElement('button');
     continueButton.textContent = 'Continue Onboarding';
-    continueButton.className = 'action-btn';
     continueButton.style.cssText = `
       padding: 10px 20px;
       background-color: #28a745;
@@ -796,38 +775,21 @@ function showScreeningResultsPopup(event) {
       border-radius: 5px;
       cursor: pointer;
       font-size: 14px;
-      margin-right: 10px;
     `;
     continueButton.onclick = () => {
       // Navigate to onboarding page
       navigateToOnboarding(event.customerId);
       popup.style.display = 'none';
       popupText.style.whiteSpace = 'normal';
-    };
-
-    const closeButton = document.createElement('button');
-    closeButton.textContent = 'Close';
-    closeButton.id = 'closePopup'; // Keep the same ID for consistency
-    closeButton.className = 'action-btn';
-    closeButton.style.cssText = `
-      padding: 10px 20px;
-      background-color: #6c757d;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 14px;
-    `;
-    closeButton.onclick = () => {
-      popup.style.display = 'none';
-      popupText.style.whiteSpace = 'normal';
+      // Clean up the button container
+      buttonContainer.remove();
     };
 
     buttonContainer.appendChild(continueButton);
-    buttonContainer.appendChild(closeButton);
+    popup.appendChild(buttonContainer);
   }
 
-  popup.appendChild(buttonContainer);
+  // Use the existing close button - no need to create a new one
   popup.style.display = 'block';
 }
 
