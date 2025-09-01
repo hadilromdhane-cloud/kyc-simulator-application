@@ -49,6 +49,9 @@ const visibleTemplates = {
       { label: 'Birth Date', key: 'birthDate' },
       { label: 'Nationality', key: 'nationality' },
       { label: 'Citizenship', key: 'citizenship' },
+      { label: 'SystemId', key: 'systemId' },
+      { label: 'SystemName', key: 'systemName' },
+      { label: 'SearchQuerySource', key: 'searchQuerySource' },
       { label: 'Queue Name', key: 'queueName' }
     ]
   },
@@ -56,7 +59,9 @@ const visibleTemplates = {
     decentralized: [{ label: 'Business Name', key: 'businessName' }],
     centralized: [
       { label: 'Business Name', key: 'businessName' },
-      { label: 'Queue Name', key: 'queueName' }
+      { label: 'SystemName', key: 'systemName' },
+      { label: 'SystemId', key: 'systemId' },
+      { label: 'SearchQuerySource', key: 'searchQuerySource' }
     ]
   }
 };
@@ -72,8 +77,7 @@ const defaultValues = {
   PM: {
     systemId: "system_001",
     systemName: "T24",
-    searchQuerySource: 'KYC',
-    queueName: 'Default'
+    searchQuerySource: 'KYC'
   }
 };
 
@@ -467,12 +471,7 @@ function setupEventPolling() {
             }
             
             console.log('About to show screening popup');
-            // Simple popup for Reis_KYC events
-            let message = `Customer ${event.customerId} screening completed.\n`;
-            message += `PEP: ${event.isPEP ? 'YES' : 'NO'}, `;
-            message += `Sanctions: ${event.isSanctioned ? 'YES' : 'NO'}, `;
-            message += `Adverse Media: ${event.isAdverseMedia ? 'YES' : 'NO'}`;
-            showPopup(message);
+            showScreeningResultsPopup(event);
           } else if (event.search_query_id) {
             const link = `https://greataml.com/search/searchdecision/${event.search_query_id}`;
             showPopup('New search result available:', link);
@@ -595,7 +594,6 @@ subTabButtons.forEach(btn => btn.addEventListener('click', () => {
 }));
 
 // --- Render input fields ---
-// --- Render input fields ---
 function renderFields(containerId, entityType, processType) {
   const container = document.getElementById(containerId);
   container.innerHTML = '';
@@ -622,21 +620,6 @@ function renderFields(containerId, entityType, processType) {
         option.textContent = country;
         input.appendChild(option);
       });
-    } else if (field.key === 'queueName') {
-      // Queue Name as select field
-      input = document.createElement('select');
-      input.id = containerId + '_' + field.key;
-
-      const queueOptions = ['Default', 'Maker', 'Checker'];
-      queueOptions.forEach(queueOption => {
-        const option = document.createElement('option');
-        option.value = queueOption;
-        option.textContent = queueOption;
-        input.appendChild(option);
-      });
-      
-      // Set default to 'Default'
-      input.value = 'Default';
     } else {
       input = document.createElement('input');
       input.id = containerId + '_' + field.key;
@@ -648,6 +631,7 @@ function renderFields(containerId, entityType, processType) {
   });
 }
 
+// --- Popup function ---
 // --- Popup function ---
 function showPopup(message, link = '') {
   const popup = document.getElementById('popup');
@@ -724,19 +708,14 @@ function showPopup(message, link = '') {
 }
 
 // --- Enhanced popup for screening results ---
-// --- Enhanced popup for screening results (FIXED VERSION) ---
+// --- Enhanced popup for screening results ---
 function showScreeningResultsPopup(event) {
+  // Create enhanced popup for screening results
   const popup = document.getElementById('popup');
   const popupText = document.getElementById('popupText');
   const popupLink = document.getElementById('popupLink');
 
-  // Clean up any previous content first
-  const extraButtons = popup.querySelectorAll('button:not(#closePopup)');
-  extraButtons.forEach(btn => btn.remove());
-  const extraDivs = popup.querySelectorAll('div');
-  extraDivs.forEach(div => div.remove());
-
-  // Create message
+  // Create message in your exact format
   let message = `Customer ${event.customerId} Screening Results:\n`;
   message += `🔍 Risk Assessment:\n`;
   message += `• PEP Status: ${event.isPEP ? '⚠️ YES' : '✅ NO'} (${event.pepDecision || 'N/A'})\n`;
@@ -744,6 +723,7 @@ function showScreeningResultsPopup(event) {
   message += `• Adverse Media: ${event.isAdverseMedia ? '⚠️ YES' : '✅ NO'}\n\n`;
   message += `Onboarding decision:\n`;
   
+  // Add onboarding decision based on sanctions status
   if (event.isSanctioned) {
     message += `Your customer is confirmed as sanctioned. You cannot proceed with the onboarding.`;
   } else {
@@ -755,14 +735,48 @@ function showScreeningResultsPopup(event) {
   popupText.style.lineHeight = '1.4';
   popupText.textContent = message;
 
-  // Hide the link field
+  // Hide the link field initially
   popupLink.style.display = 'none';
 
-  // Only add Continue Onboarding button if not sanctioned
-  if (!event.isSanctioned) {
+  // Remove ALL existing buttons (including the original close button) and extra elements
+  const existingButtons = popup.querySelectorAll('button');
+  existingButtons.forEach(btn => btn.remove());
+  const extraDivs = popup.querySelectorAll('div');
+  extraDivs.forEach(div => div.remove());
+
+  const buttonContainer = document.createElement('div');
+  buttonContainer.style.cssText = `
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+  `;
+
+  if (event.isSanctioned) {
+    // If sanctioned, only show close button
+    const closeButton = document.createElement('button');
+    closeButton.textContent = 'Close';
+    closeButton.id = 'closePopup'; // Keep the same ID for consistency
+    closeButton.className = 'action-btn';
+    closeButton.style.cssText = `
+      padding: 10px 20px;
+      background-color: #dc3545;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+    `;
+    closeButton.onclick = () => {
+      popup.style.display = 'none';
+      popupText.style.whiteSpace = 'normal';
+    };
+    buttonContainer.appendChild(closeButton);
+  } else {
+    // If not sanctioned, show continue onboarding button
     const continueButton = document.createElement('button');
     continueButton.textContent = 'Continue Onboarding';
-    continueButton.id = 'continueOnboardingBtn'; // Give it an ID for cleanup
+    continueButton.className = 'action-btn';
     continueButton.style.cssText = `
       padding: 10px 20px;
       background-color: #28a745;
@@ -771,61 +785,40 @@ function showScreeningResultsPopup(event) {
       border-radius: 5px;
       cursor: pointer;
       font-size: 14px;
-      margin: 20px 10px 0 0;
+      margin-right: 10px;
     `;
     continueButton.onclick = () => {
+      // Navigate to onboarding page
       navigateToOnboarding(event.customerId);
       popup.style.display = 'none';
-      resetPopup();
+      popupText.style.whiteSpace = 'normal';
     };
-    
-    // Insert the button before the close button
-    const closeButton = document.getElementById('closePopup');
-    closeButton.parentNode.insertBefore(continueButton, closeButton);
+
+    const closeButton = document.createElement('button');
+    closeButton.textContent = 'Close';
+    closeButton.id = 'closePopup'; // Keep the same ID for consistency
+    closeButton.className = 'action-btn';
+    closeButton.style.cssText = `
+      padding: 10px 20px;
+      background-color: #6c757d;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+    `;
+    closeButton.onclick = () => {
+      popup.style.display = 'none';
+      popupText.style.whiteSpace = 'normal';
+    };
+
+    buttonContainer.appendChild(continueButton);
+    buttonContainer.appendChild(closeButton);
   }
 
+  popup.appendChild(buttonContainer);
   popup.style.display = 'block';
 }
-
-// Helper function to reset popup to clean state
-function resetPopup() {
-  const popup = document.getElementById('popup');
-  const popupText = document.getElementById('popupText');
-  const popupLink = document.getElementById('popupLink');
-  
-  // Reset text styling
-  popupText.style.whiteSpace = 'normal';
-  popupText.style.fontSize = '';
-  popupText.style.lineHeight = '';
-  popupText.textContent = '';
-  
-  // Reset link field
-  popupLink.onclick = null;
-  popupLink.style.cursor = 'default';
-  popupLink.style.display = 'none';
-  popupLink.readOnly = true;
-  popupLink.value = '';
-  popupLink.placeholder = '';
-  
-  // Remove any extra buttons (keep only the original close button)
-  const extraButtons = popup.querySelectorAll('button:not(#closePopup)');
-  extraButtons.forEach(btn => btn.remove());
-  
-  // Remove any extra divs
-  const extraDivs = popup.querySelectorAll('div');
-  extraDivs.forEach(div => div.remove());
-  
-  // Clear text selection
-  const sel = window.getSelection();
-  sel.removeAllRanges();
-}
-
-// --- Update the close button event handler ---
-document.getElementById('closePopup').addEventListener('click', () => {
-  const popup = document.getElementById('popup');
-  popup.style.display = 'none';
-  resetPopup();
-});
 
 // --- Navigate to onboarding function ---
 function navigateToOnboarding(customerId) {
@@ -839,6 +832,8 @@ function showOnboardingPage(customerId) {
   // Keeping it for backward compatibility but it won't be called
 }
 
+// --- Call searchPersonCustomer ---
+// --- Call searchPersonCustomer ---
 // --- Call searchPersonCustomer ---
 async function callSearch(entityType, containerId, responseId, isDecentralized = false) {
   if (!tenantName || !authToken) { 
@@ -857,11 +852,7 @@ async function callSearch(entityType, containerId, responseId, isDecentralized =
   payload.systemName = defaultValues[entityType].systemName;
   payload.searchQuerySource = defaultValues[entityType].searchQuerySource;
 
-  // Add queueName for both PP and PM in centralized process
-  if (!isDecentralized) {
-    // For centralized, get queueName from form or use default
-    payload.queueName = payload.queueName || defaultValues[entityType].queueName;
-  }
+  if (entityType === 'PP') payload.queueName = defaultValues[entityType].queueName;
 
   try {
     // Use different endpoint based on entity type
@@ -880,6 +871,9 @@ async function callSearch(entityType, containerId, responseId, isDecentralized =
     });
 
     const data = await res.json();
+    
+    // Remove this line - no more JSON display:
+    // document.getElementById(responseId).textContent = JSON.stringify(data, null, 2);
 
     logMessage(`Search completed for ${entityType}`, 'success');
     showNotification('Search completed successfully', 'success');
@@ -895,117 +889,22 @@ async function callSearch(entityType, containerId, responseId, isDecentralized =
         showPopup("Your customer doesn't have any hits.");
       }
     } else {
-      // Centralized synchronous process - new popup logic
+      // Centralized synchronous process - show different popups
       if (data.maxScore && data.maxScore > 0) {
         logMessage(`Hits found for customer (Score: ${data.maxScore})`, 'warning');
-        showCentralizedPopup("The alert is being treated by the compliance team. You will receive a notification once it is processed.", false);
+        showPopup(`You can treat the customer hits in the queue: ${data.queueName || 'Default'}`);
       } else {
         logMessage('No hits found for customer', 'info');
-        showCentralizedPopup("Your customer doesn't have any matches. You can continue the onboarding.", true);
+        showPopup("The customer doesn't have any hits. You can continue the onboarding.");
       }
     }
   } catch (err) {
     const errorMsg = `Search error: ${err.message}`;
+    // Remove this line - no more JSON display:
+    // document.getElementById(responseId).textContent = errorMsg;
     logMessage(errorMsg, 'error');
     showNotification('Search failed', 'error');
   }
-}
-
-// New function for centralized popup
-function showCentralizedPopup(message, showContinueButton = false) {
-  const popup = document.getElementById('popup');
-  const popupText = document.getElementById('popupText');
-  const popupLink = document.getElementById('popupLink');
-
-  // Clean up any previous content first
-  const extraButtons = popup.querySelectorAll('button:not(#closePopup)');
-  extraButtons.forEach(btn => btn.remove());
-  const extraDivs = popup.querySelectorAll('div');
-  extraDivs.forEach(div => div.remove());
-
-  // Reset text styling
-  popupText.style.whiteSpace = 'normal';
-  popupText.style.fontSize = '';
-  popupText.style.lineHeight = '';
-  
-  // Set content
-  popupText.textContent = message;
-
-  // Hide the link field
-  popupLink.style.display = 'none';
-
-  // Create button container
-  const buttonContainer = document.createElement('div');
-  buttonContainer.style.cssText = `
-    margin-top: 20px;
-    display: flex;
-    gap: 10px;
-    justify-content: center;
-  `;
-
-  if (showContinueButton) {
-    // Show Continue Onboarding button
-    const continueButton = document.createElement('button');
-    continueButton.textContent = 'Continue Onboarding';
-    continueButton.style.cssText = `
-      padding: 10px 20px;
-      background-color: #28a745;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 14px;
-      margin-right: 10px;
-    `;
-    continueButton.onclick = () => {
-      // You can add onboarding logic here if needed
-      popup.style.display = 'none';
-      showNotification('Continuing with onboarding process...', 'success');
-    };
-    buttonContainer.appendChild(continueButton);
-  }
-
-  // Add close button
-  const closeButton = document.createElement('button');
-  closeButton.textContent = 'Close';
-  closeButton.id = 'closePopup';
-  closeButton.style.cssText = `
-    padding: 10px 20px;
-    background-color: #6c757d;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 14px;
-  `;
-  closeButton.onclick = () => {
-    popup.style.display = 'none';
-    popupText.style.whiteSpace = 'normal';
-    popupText.style.fontSize = '';
-    popupText.style.lineHeight = '';
-    popupText.textContent = '';
-    
-    // Reset link field
-    popupLink.onclick = null;
-    popupLink.style.cursor = 'default';
-    popupLink.style.display = 'none';
-    popupLink.readOnly = true;
-    popupLink.value = '';
-    popupLink.placeholder = '';
-    
-    // Remove any extra elements
-    const extraButtons = popup.querySelectorAll('button:not(#closePopup)');
-    extraButtons.forEach(btn => btn.remove());
-    const extraDivs = popup.querySelectorAll('div');
-    extraDivs.forEach(div => div.remove());
-    
-    const sel = window.getSelection();
-    sel.removeAllRanges();
-  };
-
-  buttonContainer.appendChild(closeButton);
-  popup.appendChild(buttonContainer);
-  popup.style.display = 'block';
 }
 // --- Button Events ---
 const closeBtn = document.getElementById('closePopup');
