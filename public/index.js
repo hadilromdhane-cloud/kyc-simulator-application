@@ -49,9 +49,6 @@ const visibleTemplates = {
       { label: 'Birth Date', key: 'birthDate' },
       { label: 'Nationality', key: 'nationality' },
       { label: 'Citizenship', key: 'citizenship' },
-      { label: 'SystemId', key: 'systemId' },
-      { label: 'SystemName', key: 'systemName' },
-      { label: 'SearchQuerySource', key: 'searchQuerySource' },
       { label: 'Queue Name', key: 'queueName' }
     ]
   },
@@ -59,9 +56,7 @@ const visibleTemplates = {
     decentralized: [{ label: 'Business Name', key: 'businessName' }],
     centralized: [
       { label: 'Business Name', key: 'businessName' },
-      { label: 'SystemName', key: 'systemName' },
-      { label: 'SystemId', key: 'systemId' },
-      { label: 'SearchQuerySource', key: 'searchQuerySource' }
+      { label: 'Queue Name', key: 'queueName' }
     ]
   }
 };
@@ -77,7 +72,8 @@ const defaultValues = {
   PM: {
     systemId: "system_001",
     systemName: "T24",
-    searchQuerySource: 'KYC'
+    searchQuerySource: 'KYC',
+    queueName: 'Default'
   }
 };
 
@@ -594,6 +590,7 @@ subTabButtons.forEach(btn => btn.addEventListener('click', () => {
 }));
 
 // --- Render input fields ---
+// --- Render input fields ---
 function renderFields(containerId, entityType, processType) {
   const container = document.getElementById(containerId);
   container.innerHTML = '';
@@ -620,6 +617,21 @@ function renderFields(containerId, entityType, processType) {
         option.textContent = country;
         input.appendChild(option);
       });
+    } else if (field.key === 'queueName') {
+      // Queue Name as select field
+      input = document.createElement('select');
+      input.id = containerId + '_' + field.key;
+
+      const queueOptions = ['Default', 'Maker', 'Checker'];
+      queueOptions.forEach(queueOption => {
+        const option = document.createElement('option');
+        option.value = queueOption;
+        option.textContent = queueOption;
+        input.appendChild(option);
+      });
+      
+      // Set default to 'Default'
+      input.value = 'Default';
     } else {
       input = document.createElement('input');
       input.id = containerId + '_' + field.key;
@@ -631,7 +643,6 @@ function renderFields(containerId, entityType, processType) {
   });
 }
 
-// --- Popup function ---
 // --- Popup function ---
 function showPopup(message, link = '') {
   const popup = document.getElementById('popup');
@@ -833,8 +844,6 @@ function showOnboardingPage(customerId) {
 }
 
 // --- Call searchPersonCustomer ---
-// --- Call searchPersonCustomer ---
-// --- Call searchPersonCustomer ---
 async function callSearch(entityType, containerId, responseId, isDecentralized = false) {
   if (!tenantName || !authToken) { 
     showNotification('Please authenticate first!', 'warning');
@@ -852,7 +861,11 @@ async function callSearch(entityType, containerId, responseId, isDecentralized =
   payload.systemName = defaultValues[entityType].systemName;
   payload.searchQuerySource = defaultValues[entityType].searchQuerySource;
 
-  if (entityType === 'PP') payload.queueName = defaultValues[entityType].queueName;
+  // Add queueName for both PP and PM in centralized process
+  if (!isDecentralized) {
+    // For centralized, get queueName from form or use default
+    payload.queueName = payload.queueName || defaultValues[entityType].queueName;
+  }
 
   try {
     // Use different endpoint based on entity type
@@ -871,9 +884,6 @@ async function callSearch(entityType, containerId, responseId, isDecentralized =
     });
 
     const data = await res.json();
-    
-    // Remove this line - no more JSON display:
-    // document.getElementById(responseId).textContent = JSON.stringify(data, null, 2);
 
     logMessage(`Search completed for ${entityType}`, 'success');
     showNotification('Search completed successfully', 'success');
@@ -889,22 +899,117 @@ async function callSearch(entityType, containerId, responseId, isDecentralized =
         showPopup("Your customer doesn't have any hits.");
       }
     } else {
-      // Centralized synchronous process - show different popups
+      // Centralized synchronous process - new popup logic
       if (data.maxScore && data.maxScore > 0) {
         logMessage(`Hits found for customer (Score: ${data.maxScore})`, 'warning');
-        showPopup(`You can treat the customer hits in the queue: ${data.queueName || 'Default'}`);
+        showCentralizedPopup("The alert is being treated by the compliance team. You will receive a notification once it is processed.", false);
       } else {
         logMessage('No hits found for customer', 'info');
-        showPopup("The customer doesn't have any hits. You can continue the onboarding.");
+        showCentralizedPopup("Your customer doesn't have any matches. You can continue the onboarding.", true);
       }
     }
   } catch (err) {
     const errorMsg = `Search error: ${err.message}`;
-    // Remove this line - no more JSON display:
-    // document.getElementById(responseId).textContent = errorMsg;
     logMessage(errorMsg, 'error');
     showNotification('Search failed', 'error');
   }
+}
+
+// New function for centralized popup
+function showCentralizedPopup(message, showContinueButton = false) {
+  const popup = document.getElementById('popup');
+  const popupText = document.getElementById('popupText');
+  const popupLink = document.getElementById('popupLink');
+
+  // Clean up any previous content first
+  const extraButtons = popup.querySelectorAll('button:not(#closePopup)');
+  extraButtons.forEach(btn => btn.remove());
+  const extraDivs = popup.querySelectorAll('div');
+  extraDivs.forEach(div => div.remove());
+
+  // Reset text styling
+  popupText.style.whiteSpace = 'normal';
+  popupText.style.fontSize = '';
+  popupText.style.lineHeight = '';
+  
+  // Set content
+  popupText.textContent = message;
+
+  // Hide the link field
+  popupLink.style.display = 'none';
+
+  // Create button container
+  const buttonContainer = document.createElement('div');
+  buttonContainer.style.cssText = `
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+  `;
+
+  if (showContinueButton) {
+    // Show Continue Onboarding button
+    const continueButton = document.createElement('button');
+    continueButton.textContent = 'Continue Onboarding';
+    continueButton.style.cssText = `
+      padding: 10px 20px;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-right: 10px;
+    `;
+    continueButton.onclick = () => {
+      // You can add onboarding logic here if needed
+      popup.style.display = 'none';
+      showNotification('Continuing with onboarding process...', 'success');
+    };
+    buttonContainer.appendChild(continueButton);
+  }
+
+  // Add close button
+  const closeButton = document.createElement('button');
+  closeButton.textContent = 'Close';
+  closeButton.id = 'closePopup';
+  closeButton.style.cssText = `
+    padding: 10px 20px;
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+  `;
+  closeButton.onclick = () => {
+    popup.style.display = 'none';
+    popupText.style.whiteSpace = 'normal';
+    popupText.style.fontSize = '';
+    popupText.style.lineHeight = '';
+    popupText.textContent = '';
+    
+    // Reset link field
+    popupLink.onclick = null;
+    popupLink.style.cursor = 'default';
+    popupLink.style.display = 'none';
+    popupLink.readOnly = true;
+    popupLink.value = '';
+    popupLink.placeholder = '';
+    
+    // Remove any extra elements
+    const extraButtons = popup.querySelectorAll('button:not(#closePopup)');
+    extraButtons.forEach(btn => btn.remove());
+    const extraDivs = popup.querySelectorAll('div');
+    extraDivs.forEach(div => div.remove());
+    
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+  };
+
+  buttonContainer.appendChild(closeButton);
+  popup.appendChild(buttonContainer);
+  popup.style.display = 'block';
 }
 // --- Button Events ---
 const closeBtn = document.getElementById('closePopup');
