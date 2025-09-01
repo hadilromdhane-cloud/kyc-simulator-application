@@ -667,6 +667,7 @@ function showPopup(message, link = '') {
 }
 
 // --- Enhanced popup for screening results ---
+// --- Enhanced popup for screening results ---
 function showScreeningResultsPopup(event) {
   // Create enhanced popup for screening results
   const popup = document.getElementById('popup');
@@ -696,9 +697,11 @@ function showScreeningResultsPopup(event) {
   // Hide the link field initially
   popupLink.style.display = 'none';
 
-  // Replace the close button with appropriate action buttons
-  const existingButtons = popup.querySelectorAll('.action-btn');
+  // Remove ALL existing buttons (including the original close button) and extra elements
+  const existingButtons = popup.querySelectorAll('button');
   existingButtons.forEach(btn => btn.remove());
+  const extraDivs = popup.querySelectorAll('div');
+  extraDivs.forEach(div => div.remove());
 
   const buttonContainer = document.createElement('div');
   buttonContainer.style.cssText = `
@@ -712,6 +715,7 @@ function showScreeningResultsPopup(event) {
     // If sanctioned, only show close button
     const closeButton = document.createElement('button');
     closeButton.textContent = 'Close';
+    closeButton.id = 'closePopup'; // Keep the same ID for consistency
     closeButton.className = 'action-btn';
     closeButton.style.cssText = `
       padding: 10px 20px;
@@ -751,6 +755,7 @@ function showScreeningResultsPopup(event) {
 
     const closeButton = document.createElement('button');
     closeButton.textContent = 'Close';
+    closeButton.id = 'closePopup'; // Keep the same ID for consistency
     closeButton.className = 'action-btn';
     closeButton.style.cssText = `
       padding: 10px 20px;
