@@ -719,14 +719,19 @@ function showPopup(message, link = '') {
 }
 
 // --- Enhanced popup for screening results ---
-// --- Enhanced popup for screening results ---
+// --- Enhanced popup for screening results (FIXED VERSION) ---
 function showScreeningResultsPopup(event) {
-  // Create enhanced popup for screening results
   const popup = document.getElementById('popup');
   const popupText = document.getElementById('popupText');
   const popupLink = document.getElementById('popupLink');
 
-  // Create message in your exact format
+  // Clean up any previous content first
+  const extraButtons = popup.querySelectorAll('button:not(#closePopup)');
+  extraButtons.forEach(btn => btn.remove());
+  const extraDivs = popup.querySelectorAll('div');
+  extraDivs.forEach(div => div.remove());
+
+  // Create message
   let message = `Customer ${event.customerId} Screening Results:\n`;
   message += `🔍 Risk Assessment:\n`;
   message += `• PEP Status: ${event.isPEP ? '⚠️ YES' : '✅ NO'} (${event.pepDecision || 'N/A'})\n`;
@@ -734,7 +739,6 @@ function showScreeningResultsPopup(event) {
   message += `• Adverse Media: ${event.isAdverseMedia ? '⚠️ YES' : '✅ NO'}\n\n`;
   message += `Onboarding decision:\n`;
   
-  // Add onboarding decision based on sanctions status
   if (event.isSanctioned) {
     message += `Your customer is confirmed as sanctioned. You cannot proceed with the onboarding.`;
   } else {
@@ -746,27 +750,14 @@ function showScreeningResultsPopup(event) {
   popupText.style.lineHeight = '1.4';
   popupText.textContent = message;
 
-  // Hide the link field initially
+  // Hide the link field
   popupLink.style.display = 'none';
 
-  // Remove any existing action buttons first
-  const existingButtons = popup.querySelectorAll('.action-btn');
-  existingButtons.forEach(btn => btn.remove());
-
-  // Only add additional buttons if not sanctioned (for Continue Onboarding)
+  // Only add Continue Onboarding button if not sanctioned
   if (!event.isSanctioned) {
-    const buttonContainer = document.createElement('div');
-    buttonContainer.className = 'action-btn'; // Mark for cleanup
-    buttonContainer.style.cssText = `
-      margin-top: 20px;
-      display: flex;
-      gap: 10px;
-      justify-content: center;
-    `;
-
-    // Only add continue onboarding button (use existing close button)
     const continueButton = document.createElement('button');
     continueButton.textContent = 'Continue Onboarding';
+    continueButton.id = 'continueOnboardingBtn'; // Give it an ID for cleanup
     continueButton.style.cssText = `
       padding: 10px 20px;
       background-color: #28a745;
@@ -775,23 +766,61 @@ function showScreeningResultsPopup(event) {
       border-radius: 5px;
       cursor: pointer;
       font-size: 14px;
+      margin: 20px 10px 0 0;
     `;
     continueButton.onclick = () => {
-      // Navigate to onboarding page
       navigateToOnboarding(event.customerId);
       popup.style.display = 'none';
-      popupText.style.whiteSpace = 'normal';
-      // Clean up the button container
-      buttonContainer.remove();
+      resetPopup();
     };
-
-    buttonContainer.appendChild(continueButton);
-    popup.appendChild(buttonContainer);
+    
+    // Insert the button before the close button
+    const closeButton = document.getElementById('closePopup');
+    closeButton.parentNode.insertBefore(continueButton, closeButton);
   }
 
-  // Use the existing close button - no need to create a new one
   popup.style.display = 'block';
 }
+
+// Helper function to reset popup to clean state
+function resetPopup() {
+  const popup = document.getElementById('popup');
+  const popupText = document.getElementById('popupText');
+  const popupLink = document.getElementById('popupLink');
+  
+  // Reset text styling
+  popupText.style.whiteSpace = 'normal';
+  popupText.style.fontSize = '';
+  popupText.style.lineHeight = '';
+  popupText.textContent = '';
+  
+  // Reset link field
+  popupLink.onclick = null;
+  popupLink.style.cursor = 'default';
+  popupLink.style.display = 'none';
+  popupLink.readOnly = true;
+  popupLink.value = '';
+  popupLink.placeholder = '';
+  
+  // Remove any extra buttons (keep only the original close button)
+  const extraButtons = popup.querySelectorAll('button:not(#closePopup)');
+  extraButtons.forEach(btn => btn.remove());
+  
+  // Remove any extra divs
+  const extraDivs = popup.querySelectorAll('div');
+  extraDivs.forEach(div => div.remove());
+  
+  // Clear text selection
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+}
+
+// --- Update the close button event handler ---
+document.getElementById('closePopup').addEventListener('click', () => {
+  const popup = document.getElementById('popup');
+  popup.style.display = 'none';
+  resetPopup();
+});
 
 // --- Navigate to onboarding function ---
 function navigateToOnboarding(customerId) {
