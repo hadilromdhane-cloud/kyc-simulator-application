@@ -632,7 +632,6 @@ function renderFields(containerId, entityType, processType) {
 }
 
 // --- Popup function ---
-// --- Popup function ---
 function showPopup(message, link = '') {
   const popup = document.getElementById('popup');
   const popupText = document.getElementById('popupText');
@@ -661,46 +660,6 @@ function showPopup(message, link = '') {
   } else {
     popupLink.style.display = 'none';
   }
-
-  // Ensure the original close button exists and is functional
-  let closeButton = document.getElementById('closePopup');
-  if (!closeButton) {
-    // Create the close button if it doesn't exist
-    closeButton = document.createElement('button');
-    closeButton.id = 'closePopup';
-    closeButton.textContent = 'Close';
-    closeButton.style.cssText = 'padding:8px 15px; font-size:1rem;';
-    popup.appendChild(closeButton);
-  }
-  
-  // Make sure it's visible and functional
-  closeButton.style.display = 'block';
-  closeButton.onclick = () => {
-    popup.style.display = 'none';
-    popupText.style.whiteSpace = 'normal';
-    popupText.style.fontSize = '';
-    popupText.style.lineHeight = '';
-    popupText.textContent = '';
-    
-    // Reset link field
-    popupLink.onclick = null;
-    popupLink.style.cursor = 'default';
-    popupLink.style.display = 'none';
-    popupLink.readOnly = true;
-    popupLink.value = '';
-    popupLink.placeholder = '';
-    
-    // Remove any extra buttons that might have been added
-    const extraButtons = popup.querySelectorAll('button:not(#closePopup)');
-    extraButtons.forEach(btn => btn.remove());
-    
-    // Remove any extra divs that might have been added
-    const extraDivs = popup.querySelectorAll('div');
-    extraDivs.forEach(div => div.remove());
-    
-    const sel = window.getSelection();
-    sel.removeAllRanges();
-  };
 
   popup.style.display = 'block';
 
