@@ -793,7 +793,6 @@ function showOnboardingPage(customerId) {
 
 // --- Call searchPersonCustomer ---
 // --- Call searchPersonCustomer ---
-// --- Call searchPersonCustomer ---
 async function callSearch(entityType, containerId, responseId, isDecentralized = false) {
   if (!tenantName || !authToken) { 
     showNotification('Please authenticate first!', 'warning');
@@ -814,12 +813,7 @@ async function callSearch(entityType, containerId, responseId, isDecentralized =
   if (entityType === 'PP') payload.queueName = defaultValues[entityType].queueName;
 
   try {
-    // Use different endpoint based on entity type
-    const endpoint = entityType === 'PM' 
-      ? 'https://greataml.com/kyc-web-restful/search/searchEntityCustomer'
-      : 'https://greataml.com/kyc-web-restful/search/searchPersonCustomer';
-    
-    const res = await fetch(endpoint, {
+    const res = await fetch('https://greataml.com/kyc-web-restful/search/searchPersonCustomer', {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
