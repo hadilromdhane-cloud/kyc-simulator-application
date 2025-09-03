@@ -466,8 +466,8 @@ function setupEventPolling() {
               updateNotificationBadge();
             }
             
-            console.log('About to show screening results from event');
-            showScreeningResultsFromEvent(event);
+            console.log('About to show screening popup');
+            showScreeningResultsPopup(event);
           } else if (event.search_query_id) {
             const link = `https://greataml.com/search/searchdecision/${event.search_query_id}`;
             showPopup('New search result available:', link);
@@ -590,6 +590,7 @@ subTabButtons.forEach(btn => btn.addEventListener('click', () => {
 }));
 
 // --- Render input fields ---
+// --- Render input fields ---
 function renderFields(containerId, entityType, processType) {
   const container = document.getElementById(containerId);
   container.innerHTML = '';
@@ -642,9 +643,7 @@ function renderFields(containerId, entityType, processType) {
   });
 }
 
-// --- Popup Functions ---
-
-// Basic popup function (used by all other popup functions)
+// --- Popup function ---
 function showPopup(message, link = '') {
   const popup = document.getElementById('popup');
   const popupText = document.getElementById('popupText');
@@ -674,45 +673,165 @@ function showPopup(message, link = '') {
     popupLink.style.display = 'none';
   }
 
+  // Ensure the original close button exists and is functional
+  let closeButton = document.getElementById('closePopup');
+  if (!closeButton) {
+    // Create the close button if it doesn't exist
+    closeButton = document.createElement('button');
+    closeButton.id = 'closePopup';
+    closeButton.textContent = 'Close';
+    closeButton.style.cssText = 'padding:8px 15px; font-size:1rem;';
+    popup.appendChild(closeButton);
+  }
+  
+  // Make sure it's visible and functional
+  closeButton.style.display = 'block';
+  closeButton.onclick = () => {
+    popup.style.display = 'none';
+    popupText.style.whiteSpace = 'normal';
+    popupText.style.fontSize = '';
+    popupText.style.lineHeight = '';
+    popupText.textContent = '';
+    
+    // Reset link field
+    popupLink.onclick = null;
+    popupLink.style.cursor = 'default';
+    popupLink.style.display = 'none';
+    popupLink.readOnly = true;
+    popupLink.value = '';
+    popupLink.placeholder = '';
+    
+    // Remove any extra buttons that might have been added
+    const extraButtons = popup.querySelectorAll('button:not(#closePopup)');
+    extraButtons.forEach(btn => btn.remove());
+    
+    // Remove any extra divs that might have been added
+    const extraDivs = popup.querySelectorAll('div');
+    extraDivs.forEach(div => div.remove());
+    
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+  };
+
   popup.style.display = 'block';
 
   if (link) popupLink.select();
 }
 
-// Centralized alert function (for sync/async search results)
-function showCentralizedAlert(maxScore) {
-  if (maxScore === 0) {
-    // No matches - show continue onboarding option
-    const message = "Your customer doesn't have any matches. You can continue the onboarding.";
-    const onboardingLink = "onboarding.html";
-    showPopup(message, onboardingLink);
+// --- Enhanced popup for screening results ---
+// --- Enhanced popup for screening results (FIXED VERSION) ---
+function showScreeningResultsPopup(event) {
+  const popup = document.getElementById('popup');
+  const popupText = document.getElementById('popupText');
+  const popupLink = document.getElementById('popupLink');
+
+  // Clean up any previous content first
+  const extraButtons = popup.querySelectorAll('button:not(#closePopup)');
+  extraButtons.forEach(btn => btn.remove());
+  const extraDivs = popup.querySelectorAll('div');
+  extraDivs.forEach(div => div.remove());
+
+  // Create message
+  let message = `Customer ${event.customerId} Screening Results:\n`;
+  message += `🔍 Risk Assessment:\n`;
+  message += `• PEP Status: ${event.isPEP ? '⚠️ YES' : '✅ NO'} (${event.pepDecision || 'N/A'})\n`;
+  message += `• Sanctions: ${event.isSanctioned ? '🚨 YES' : '✅ NO'} (${event.sanctionDecision || 'N/A'})\n`;
+  message += `• Adverse Media: ${event.isAdverseMedia ? '⚠️ YES' : '✅ NO'}\n\n`;
+  message += `Onboarding decision:\n`;
+  
+  if (event.isSanctioned) {
+    message += `Your customer is confirmed as sanctioned. You cannot proceed with the onboarding.`;
   } else {
-    // Has matches - show compliance message
-    const message = "The alert is being treated by the compliance team. You will receive a notification once it is processed.";
-    showPopup(message); // No link, just message
+    message += `Customer cleared for onboarding. You can proceed with the onboarding process.`;
   }
+
+  popupText.style.whiteSpace = 'pre-line';
+  popupText.style.fontSize = '14px';
+  popupText.style.lineHeight = '1.4';
+  popupText.textContent = message;
+
+  // Hide the link field
+  popupLink.style.display = 'none';
+
+  // Only add Continue Onboarding button if not sanctioned
+  if (!event.isSanctioned) {
+    const continueButton = document.createElement('button');
+    continueButton.textContent = 'Continue Onboarding';
+    continueButton.id = 'continueOnboardingBtn'; // Give it an ID for cleanup
+    continueButton.style.cssText = `
+      padding: 10px 20px;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+      margin: 20px 10px 0 0;
+    `;
+    continueButton.onclick = () => {
+      navigateToOnboarding(event.customerId);
+      popup.style.display = 'none';
+      resetPopup();
+    };
+    
+    // Insert the button before the close button
+    const closeButton = document.getElementById('closePopup');
+    closeButton.parentNode.insertBefore(continueButton, closeButton);
+  }
+
+  popup.style.display = 'block';
 }
 
-// Screening results function (for Reis_KYC event notifications)
-function showScreeningResultsFromEvent(event) {
-  let message = `Customer ${event.customerId} Screening Results:\n`;
-  message += `• PEP: ${event.isPEP ? 'YES' : 'NO'}\n`;
-  message += `• Sanctions: ${event.isSanctioned ? 'YES' : 'NO'}\n`;
-  message += `• Adverse Media: ${event.isAdverseMedia ? 'YES' : 'NO'}\n\n`;
-  git 
-  if (event.isSanctioned) {
-    message += `Status: Customer is sanctioned - onboarding blocked.`;
-  } else {
-    message += `Status: Customer cleared for onboarding.`;
-  }
+// Helper function to reset popup to clean state
+function resetPopup() {
+  const popup = document.getElementById('popup');
+  const popupText = document.getElementById('popupText');
+  const popupLink = document.getElementById('popupLink');
   
-  showPopup(message);
+  // Reset text styling
+  popupText.style.whiteSpace = 'normal';
+  popupText.style.fontSize = '';
+  popupText.style.lineHeight = '';
+  popupText.textContent = '';
+  
+  // Reset link field
+  popupLink.onclick = null;
+  popupLink.style.cursor = 'default';
+  popupLink.style.display = 'none';
+  popupLink.readOnly = true;
+  popupLink.value = '';
+  popupLink.placeholder = '';
+  
+  // Remove any extra buttons (keep only the original close button)
+  const extraButtons = popup.querySelectorAll('button:not(#closePopup)');
+  extraButtons.forEach(btn => btn.remove());
+  
+  // Remove any extra divs
+  const extraDivs = popup.querySelectorAll('div');
+  extraDivs.forEach(div => div.remove());
+  
+  // Clear text selection
+  const sel = window.getSelection();
+  sel.removeAllRanges();
 }
+
+// --- Update the close button event handler ---
+document.getElementById('closePopup').addEventListener('click', () => {
+  const popup = document.getElementById('popup');
+  popup.style.display = 'none';
+  resetPopup();
+});
 
 // --- Navigate to onboarding function ---
 function navigateToOnboarding(customerId) {
   // Navigate to a new onboarding page
   window.location.href = `onboarding.html?customerId=${customerId}`;
+}
+
+// --- Show onboarding page ---
+function showOnboardingPage(customerId) {
+  // This function is no longer needed since we're navigating to a new page
+  // Keeping it for backward compatibility but it won't be called
 }
 
 // --- Call searchPersonCustomer ---
@@ -771,8 +890,14 @@ async function callSearch(entityType, containerId, responseId, isDecentralized =
         showPopup("Your customer doesn't have any hits.");
       }
     } else {
-      // Centralized process - use centralized alert function
-      showCentralizedAlert(data.maxScore || 0);
+      // Centralized synchronous process - new popup logic
+      if (data.maxScore && data.maxScore > 0) {
+        logMessage(`Hits found for customer (Score: ${data.maxScore})`, 'warning');
+        showCentralizedPopup("The alert is being treated by the compliance team. You will receive a notification once it is processed.", false);
+      } else {
+        logMessage('No hits found for customer', 'info');
+        showCentralizedPopup("Your customer doesn't have any matches. You can continue the onboarding.", true);
+      }
     }
   } catch (err) {
     const errorMsg = `Search error: ${err.message}`;
@@ -781,6 +906,102 @@ async function callSearch(entityType, containerId, responseId, isDecentralized =
   }
 }
 
+// New function for centralized popup
+function showCentralizedPopup(message, showContinueButton = false) {
+  const popup = document.getElementById('popup');
+  const popupText = document.getElementById('popupText');
+  const popupLink = document.getElementById('popupLink');
+
+  // Clean up any previous content first
+  const extraButtons = popup.querySelectorAll('button:not(#closePopup)');
+  extraButtons.forEach(btn => btn.remove());
+  const extraDivs = popup.querySelectorAll('div');
+  extraDivs.forEach(div => div.remove());
+
+  // Reset text styling
+  popupText.style.whiteSpace = 'normal';
+  popupText.style.fontSize = '';
+  popupText.style.lineHeight = '';
+  
+  // Set content
+  popupText.textContent = message;
+
+  // Hide the link field
+  popupLink.style.display = 'none';
+
+  // Create button container
+  const buttonContainer = document.createElement('div');
+  buttonContainer.style.cssText = `
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+  `;
+
+  if (showContinueButton) {
+    // Show Continue Onboarding button
+    const continueButton = document.createElement('button');
+    continueButton.textContent = 'Continue Onboarding';
+    continueButton.style.cssText = `
+      padding: 10px 20px;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-right: 10px;
+    `;
+    continueButton.onclick = () => {
+      // You can add onboarding logic here if needed
+      popup.style.display = 'none';
+      showNotification('Continuing with onboarding process...', 'success');
+    };
+    buttonContainer.appendChild(continueButton);
+  }
+
+  // Add close button
+  const closeButton = document.createElement('button');
+  closeButton.textContent = 'Close';
+  closeButton.id = 'closePopup';
+  closeButton.style.cssText = `
+    padding: 10px 20px;
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+  `;
+  closeButton.onclick = () => {
+    popup.style.display = 'none';
+    popupText.style.whiteSpace = 'normal';
+    popupText.style.fontSize = '';
+    popupText.style.lineHeight = '';
+    popupText.textContent = '';
+    
+    // Reset link field
+    popupLink.onclick = null;
+    popupLink.style.cursor = 'default';
+    popupLink.style.display = 'none';
+    popupLink.readOnly = true;
+    popupLink.value = '';
+    popupLink.placeholder = '';
+    
+    // Remove any extra elements
+    const extraButtons = popup.querySelectorAll('button:not(#closePopup)');
+    extraButtons.forEach(btn => btn.remove());
+    const extraDivs = popup.querySelectorAll('div');
+    extraDivs.forEach(div => div.remove());
+    
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+  };
+
+  buttonContainer.appendChild(closeButton);
+  popup.appendChild(buttonContainer);
+  popup.style.display = 'block';
+}
 // --- Button Events ---
 const closeBtn = document.getElementById('closePopup');
 closeBtn.addEventListener('click', () => {
