@@ -546,6 +546,10 @@ authBtn.addEventListener('click', async () => {
     authToken = data.token;
     logMessage('Authentication successful', 'success');
     showNotification('Authenticated successfully!', 'success');
+
+    localStorage.setItem('authToken', authToken);
+    localStorage.setItem('tenantName', tenantName);
+    console.log('Auth tokens stored for onboarding page');
   } catch(err) {
     logMessage(`Authentication error: ${err.message}`, 'error');
     showNotification('Authentication failed!', 'error');
