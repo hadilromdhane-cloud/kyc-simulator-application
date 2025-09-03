@@ -49,9 +49,6 @@ const visibleTemplates = {
       { label: 'Birth Date', key: 'birthDate' },
       { label: 'Nationality', key: 'nationality' },
       { label: 'Citizenship', key: 'citizenship' },
-      { label: 'SystemId', key: 'systemId' },
-      { label: 'SystemName', key: 'systemName' },
-      { label: 'SearchQuerySource', key: 'searchQuerySource' },
       { label: 'Queue Name', key: 'queueName' }
     ]
   },
@@ -59,9 +56,7 @@ const visibleTemplates = {
     decentralized: [{ label: 'Business Name', key: 'businessName' }],
     centralized: [
       { label: 'Business Name', key: 'businessName' },
-      { label: 'SystemName', key: 'systemName' },
-      { label: 'SystemId', key: 'systemId' },
-      { label: 'SearchQuerySource', key: 'searchQuerySource' }
+      { label: 'Queue Name', key: 'queueName' }
     ]
   }
 };
@@ -77,7 +72,8 @@ const defaultValues = {
   PM: {
     systemId: "system_001",
     systemName: "T24",
-    searchQuerySource: 'KYC'
+    searchQuerySource: 'KYC',
+    queueName: 'Default'
   }
 };
 
@@ -470,8 +466,8 @@ function setupEventPolling() {
               updateNotificationBadge();
             }
             
-            console.log('About to show screening popup');
-            showScreeningResultsPopup(event);
+            console.log('About to show screening results from event');
+            showScreeningResultsFromEvent(event);
           } else if (event.search_query_id) {
             const link = `https://greataml.com/search/searchdecision/${event.search_query_id}`;
             showPopup('New search result available:', link);
@@ -620,6 +616,21 @@ function renderFields(containerId, entityType, processType) {
         option.textContent = country;
         input.appendChild(option);
       });
+    } else if (field.key === 'queueName') {
+      // Queue Name as select field
+      input = document.createElement('select');
+      input.id = containerId + '_' + field.key;
+
+      const queueOptions = ['Default', 'Maker', 'Checker'];
+      queueOptions.forEach(queueOption => {
+        const option = document.createElement('option');
+        option.value = queueOption;
+        option.textContent = queueOption;
+        input.appendChild(option);
+      });
+      
+      // Set default to 'Default'
+      input.value = 'Default';
     } else {
       input = document.createElement('input');
       input.id = containerId + '_' + field.key;
@@ -631,7 +642,9 @@ function renderFields(containerId, entityType, processType) {
   });
 }
 
-// --- Popup function ---
+// --- Popup Functions ---
+
+// Basic popup function (used by all other popup functions)
 function showPopup(message, link = '') {
   const popup = document.getElementById('popup');
   const popupText = document.getElementById('popupText');
@@ -666,117 +679,34 @@ function showPopup(message, link = '') {
   if (link) popupLink.select();
 }
 
-// --- Enhanced popup for screening results ---
-// --- Enhanced popup for screening results ---
-function showScreeningResultsPopup(event) {
-  // Create enhanced popup for screening results
-  const popup = document.getElementById('popup');
-  const popupText = document.getElementById('popupText');
-  const popupLink = document.getElementById('popupLink');
+// Centralized alert function (for sync/async search results)
+function showCentralizedAlert(maxScore) {
+  if (maxScore === 0) {
+    // No matches - show continue onboarding option
+    const message = "Your customer doesn't have any matches. You can continue the onboarding.";
+    const onboardingLink = "onboarding.html";
+    showPopup(message, onboardingLink);
+  } else {
+    // Has matches - show compliance message
+    const message = "The alert is being treated by the compliance team. You will receive a notification once it is processed.";
+    showPopup(message); // No link, just message
+  }
+}
 
-  // Create message in your exact format
+// Screening results function (for Reis_KYC event notifications)
+function showScreeningResultsFromEvent(event) {
   let message = `Customer ${event.customerId} Screening Results:\n`;
-  message += `🔍 Risk Assessment:\n`;
-  message += `• PEP Status: ${event.isPEP ? '⚠️ YES' : '✅ NO'} (${event.pepDecision || 'N/A'})\n`;
-  message += `• Sanctions: ${event.isSanctioned ? '🚨 YES' : '✅ NO'} (${event.sanctionDecision || 'N/A'})\n`;
-  message += `• Adverse Media: ${event.isAdverseMedia ? '⚠️ YES' : '✅ NO'}\n\n`;
-  message += `Onboarding decision:\n`;
+  message += `• PEP: ${event.isPEP ? 'YES' : 'NO'}\n`;
+  message += `• Sanctions: ${event.isSanctioned ? 'YES' : 'NO'}\n`;
+  message += `• Adverse Media: ${event.isAdverseMedia ? 'YES' : 'NO'}\n\n`;
+  git 
+  if (event.isSanctioned) {
+    message += `Status: Customer is sanctioned - onboarding blocked.`;
+  } else {
+    message += `Status: Customer cleared for onboarding.`;
+  }
   
-  // Add onboarding decision based on sanctions status
-  if (event.isSanctioned) {
-    message += `Your customer is confirmed as sanctioned. You cannot proceed with the onboarding.`;
-  } else {
-    message += `Customer cleared for onboarding. You can proceed with the onboarding process.`;
-  }
-
-  popupText.style.whiteSpace = 'pre-line';
-  popupText.style.fontSize = '14px';
-  popupText.style.lineHeight = '1.4';
-  popupText.textContent = message;
-
-  // Hide the link field initially
-  popupLink.style.display = 'none';
-
-  // Remove ALL existing buttons (including the original close button) and extra elements
-  const existingButtons = popup.querySelectorAll('button');
-  existingButtons.forEach(btn => btn.remove());
-  const extraDivs = popup.querySelectorAll('div');
-  extraDivs.forEach(div => div.remove());
-
-  const buttonContainer = document.createElement('div');
-  buttonContainer.style.cssText = `
-    margin-top: 20px;
-    display: flex;
-    gap: 10px;
-    justify-content: center;
-  `;
-
-  if (event.isSanctioned) {
-    // If sanctioned, only show close button
-    const closeButton = document.createElement('button');
-    closeButton.textContent = 'Close';
-    closeButton.id = 'closePopup'; // Keep the same ID for consistency
-    closeButton.className = 'action-btn';
-    closeButton.style.cssText = `
-      padding: 10px 20px;
-      background-color: #dc3545;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 14px;
-    `;
-    closeButton.onclick = () => {
-      popup.style.display = 'none';
-      popupText.style.whiteSpace = 'normal';
-    };
-    buttonContainer.appendChild(closeButton);
-  } else {
-    // If not sanctioned, show continue onboarding button
-    const continueButton = document.createElement('button');
-    continueButton.textContent = 'Continue Onboarding';
-    continueButton.className = 'action-btn';
-    continueButton.style.cssText = `
-      padding: 10px 20px;
-      background-color: #28a745;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 14px;
-      margin-right: 10px;
-    `;
-    continueButton.onclick = () => {
-      // Navigate to onboarding page
-      navigateToOnboarding(event.customerId);
-      popup.style.display = 'none';
-      popupText.style.whiteSpace = 'normal';
-    };
-
-    const closeButton = document.createElement('button');
-    closeButton.textContent = 'Close';
-    closeButton.id = 'closePopup'; // Keep the same ID for consistency
-    closeButton.className = 'action-btn';
-    closeButton.style.cssText = `
-      padding: 10px 20px;
-      background-color: #6c757d;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 14px;
-    `;
-    closeButton.onclick = () => {
-      popup.style.display = 'none';
-      popupText.style.whiteSpace = 'normal';
-    };
-
-    buttonContainer.appendChild(continueButton);
-    buttonContainer.appendChild(closeButton);
-  }
-
-  popup.appendChild(buttonContainer);
-  popup.style.display = 'block';
+  showPopup(message);
 }
 
 // --- Navigate to onboarding function ---
@@ -785,13 +715,6 @@ function navigateToOnboarding(customerId) {
   window.location.href = `onboarding.html?customerId=${customerId}`;
 }
 
-// --- Show onboarding page ---
-function showOnboardingPage(customerId) {
-  // This function is no longer needed since we're navigating to a new page
-  // Keeping it for backward compatibility but it won't be called
-}
-
-// --- Call searchPersonCustomer ---
 // --- Call searchPersonCustomer ---
 async function callSearch(entityType, containerId, responseId, isDecentralized = false) {
   if (!tenantName || !authToken) { 
@@ -810,10 +733,19 @@ async function callSearch(entityType, containerId, responseId, isDecentralized =
   payload.systemName = defaultValues[entityType].systemName;
   payload.searchQuerySource = defaultValues[entityType].searchQuerySource;
 
-  if (entityType === 'PP') payload.queueName = defaultValues[entityType].queueName;
+  // Add queueName for both PP and PM in centralized process
+  if (!isDecentralized) {
+    // For centralized, get queueName from form or use default
+    payload.queueName = payload.queueName || defaultValues[entityType].queueName;
+  }
 
   try {
-    const res = await fetch('https://greataml.com/kyc-web-restful/search/searchPersonCustomer', {
+    // Use different endpoint based on entity type
+    const endpoint = entityType === 'PM' 
+      ? 'https://greataml.com/kyc-web-restful/search/searchEntityCustomer'
+      : 'https://greataml.com/kyc-web-restful/search/searchPersonCustomer';
+    
+    const res = await fetch(endpoint, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
@@ -824,9 +756,6 @@ async function callSearch(entityType, containerId, responseId, isDecentralized =
     });
 
     const data = await res.json();
-    
-    // Remove this line - no more JSON display:
-    // document.getElementById(responseId).textContent = JSON.stringify(data, null, 2);
 
     logMessage(`Search completed for ${entityType}`, 'success');
     showNotification('Search completed successfully', 'success');
@@ -842,23 +771,16 @@ async function callSearch(entityType, containerId, responseId, isDecentralized =
         showPopup("Your customer doesn't have any hits.");
       }
     } else {
-      // Centralized synchronous process - show different popups
-      if (data.maxScore && data.maxScore > 0) {
-        logMessage(`Hits found for customer (Score: ${data.maxScore})`, 'warning');
-        showPopup(`You can treat the customer hits in the queue: ${data.queueName || 'Default'}`);
-      } else {
-        logMessage('No hits found for customer', 'info');
-        showPopup("The customer doesn't have any hits. You can continue the onboarding.");
-      }
+      // Centralized process - use centralized alert function
+      showCentralizedAlert(data.maxScore || 0);
     }
   } catch (err) {
     const errorMsg = `Search error: ${err.message}`;
-    // Remove this line - no more JSON display:
-    // document.getElementById(responseId).textContent = errorMsg;
     logMessage(errorMsg, 'error');
     showNotification('Search failed', 'error');
   }
 }
+
 // --- Button Events ---
 const closeBtn = document.getElementById('closePopup');
 closeBtn.addEventListener('click', () => {
