@@ -454,6 +454,24 @@ function setupEventPolling() {
           if (event.source === 'Reis_KYC' && event.customerId) {
             console.log('Processing Reis KYC event:', event);
             
+            // Find and link the systemId from the screening request
+            const linkedSystemId = linkCustomerToSystemId(event.customerId, event.search_query_id);
+            if (linkedSystemId) {
+              event.originalSystemId = linkedSystemId;
+              // Store the permanent mapping
+              storeSystemIdForScreening(event.customerId, linkedSystemId, {
+                searchQueryId: event.search_query_id,
+                source: event.source
+              });
+              console.log('Successfully linked systemId to customer:', {
+                customerId: event.customerId,
+                systemId: linkedSystemId,
+                searchQueryId: event.search_query_id
+              });
+            } else {
+              console.warn('Could not find systemId for customer:', event.customerId);
+            }
+            
             // Save to history
             const existingIndex = notificationsHistory.findIndex(n => n.customerId === event.customerId && n.search_query_id === event.search_query_id);
             if (existingIndex === -1) {
@@ -503,6 +521,81 @@ function setupEventPolling() {
       }
     }
   }, pollingFrequency);
+}
+
+// Helper function to link customer ID to systemId using search_query_id
+function linkCustomerToSystemId(customerId, searchQueryId) {
+  try {
+    console.log('Attempting to link customer to systemId:', { customerId, searchQueryId });
+    
+    // Look for temporary screening data that matches this search_query_id
+    const keys = Object.keys(localStorage);
+    for (const key of keys) {
+      if (key.startsWith('temp_screening_')) {
+        try {
+          const screeningData = JSON.parse(localStorage.getItem(key));
+          console.log('Checking temp screening data:', { key, screeningData });
+          
+          if (screeningData && screeningData.searchQueryId === searchQueryId) {
+            console.log('Found matching screening data for linkage:', {
+              customerId: customerId,
+              systemId: screeningData.systemId,
+              searchQueryId: searchQueryId
+            });
+            
+            // Clean up temporary data
+            localStorage.removeItem(key);
+            console.log('Cleaned up temporary screening data:', key);
+            
+            return screeningData.systemId;
+          }
+        } catch (parseError) {
+          console.error('Error parsing temp screening data:', key, parseError);
+          // Remove corrupted data
+          localStorage.removeItem(key);
+        }
+      }
+    }
+    
+    console.warn('Could not link customer to systemId - no matching temp data found:', {
+      customerId,
+      searchQueryId,
+      availableTempKeys: keys.filter(k => k.startsWith('temp_screening_'))
+    });
+    return null;
+  } catch (error) {
+    console.error('Error linking customer to systemId:', error);
+    return null;
+  }
+}
+
+// Helper function to store systemId for screening
+function storeSystemIdForScreening(customerId, systemId, additionalData = {}) {
+  try {
+    const screeningData = {
+      systemId: systemId,
+      customerId: customerId,
+      timestamp: new Date().toISOString(),
+      ...additionalData
+    };
+    
+    // Store by customerId for easy lookup during onboarding
+    localStorage.setItem(`customerSystemId_${customerId}`, systemId);
+    
+    // Store detailed screening data
+    localStorage.setItem(`screeningData_${customerId}`, JSON.stringify(screeningData));
+    
+    console.log('Successfully stored systemId for screening:', {
+      customerId: customerId,
+      systemId: systemId,
+      storageKeys: [`customerSystemId_${customerId}`, `screeningData_${customerId}`]
+    });
+    
+    return true;
+  } catch (error) {
+    console.error('Error storing systemId for screening:', error);
+    return false;
+  }
 }
 
 // Function to manually reset connection
@@ -839,6 +932,7 @@ function showOnboardingPage(customerId) {
 }
 
 // --- Call searchPersonCustomer ---
+// Updated callSearch function - add this to your index.js
 async function callSearch(entityType, containerId, responseId, isDecentralized = false) {
   if (!tenantName || !authToken) { 
     showNotification('Please authenticate first!', 'warning');
@@ -852,13 +946,19 @@ async function callSearch(entityType, containerId, responseId, isDecentralized =
     payload[input.id.replace(containerId + '_', '')] = input.value;
   });
 
-  payload.systemId = `system_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+  // Generate systemId with the exact format: system_timestamp_random
+  const generatedSystemId = `system_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+  payload.systemId = generatedSystemId;
   payload.systemName = defaultValues[entityType].systemName;
   payload.searchQuerySource = defaultValues[entityType].searchQuerySource;
 
+  // Store the systemId for this customer for later use in onboarding
+  const customerIdentifier = payload.firstName + '_' + payload.lastName + '_' + payload.birthDate;
+  localStorage.setItem(`systemId_${customerIdentifier}`, generatedSystemId);
+  console.log('Stored systemId for customer:', customerIdentifier, '→', generatedSystemId);
+
   // Add queueName for both PP and PM in centralized process
   if (!isDecentralized) {
-    // For centralized, get queueName from form or use default
     payload.queueName = payload.queueName || defaultValues[entityType].queueName;
   }
 
