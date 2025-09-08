@@ -337,8 +337,11 @@ function resetForm() {
   document.getElementById('onboardingForm').classList.remove('hidden');
   document.getElementById('resultsSection').classList.add('hidden');
   
-  // Generate new system ID
-  document.getElementById('systemId').value = `CUST_${Date.now()}`;
+  // Generate new system ID using the same format as screening
+  const newSystemId = `system_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+  document.getElementById('systemId').value = newSystemId;
+  // Keep systemName consistent with screening (T24)
+  document.getElementById('systemName').value = 'T24';
   
   // Reset complete button to default state
   const completeBtn = document.getElementById('completeBtn');
@@ -355,6 +358,8 @@ function resetForm() {
   
   // Scroll to top
   window.scrollTo({ top: 0, behavior: 'smooth' });
+  
+  console.log('New SystemId for reset form:', newSystemId);
 }
 
 /**
